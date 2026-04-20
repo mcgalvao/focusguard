@@ -34,6 +34,7 @@ _presence_service = None
 _activity_service = None
 _report_service = None
 _scheduler: Optional[AsyncIOScheduler] = None
+_last_tracker_ping: Optional[float] = None  # Unix timestamp of last tracker batch
 
 
 class ActivityItem(BaseModel):
@@ -133,6 +134,9 @@ async def health():
 
 @app.post("/api/activity")
 async def receive_activity(batch: ActivityBatch, background_tasks: BackgroundTasks):
+    global _last_tracker_ping
+    import time
+    _last_tracker_ping = time.time()
     if _activity_service is None:
         return {"status": "not_ready"}
     activities = [a.model_dump() for a in batch.activities]
@@ -142,9 +146,15 @@ async def receive_activity(batch: ActivityBatch, background_tasks: BackgroundTas
 
 @app.get("/api/status")
 async def get_current_status():
+    import time
     if _presence_service is None:
-        return {"status": "not_ready", "is_home": False, "is_useful_time": False, "is_studying": False}
-    return await _presence_service.get_current_status()
+        return {"status": "not_ready", "is_home": False, "is_useful_time": False, "is_studying": False, "tracker_connected": False}
+    result = await _presence_service.get_current_status()
+    # Tracker is considered connected if it sent data in the last 90 seconds
+    tracker_connected = _last_tracker_ping is not None and (time.time() - _last_tracker_ping) < 90
+    result["tracker_connected"] = tracker_connected
+    result["tracker_last_seen"] = _last_tracker_ping
+    return result
 
 
 @app.get("/api/report/today")

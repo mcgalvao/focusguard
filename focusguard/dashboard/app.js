@@ -32,7 +32,18 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('api/status');
             const data = await res.json();
-            updateStatusUI(data); updateSystemDot(true);
+            updateStatusUI(data);
+            updateSystemDot(true);
+            // Update tracker indicator
+            const trackerDot = document.getElementById('tracker-status-dot');
+            const trackerText = document.getElementById('tracker-status-text');
+            if (data.tracker_connected) {
+                trackerDot.className = 'status-dot online';
+                trackerText.textContent = 'Tracker conectado';
+            } else {
+                trackerDot.className = 'status-dot offline';
+                trackerText.textContent = 'Tracker offline';
+            }
         } catch (e) { console.error(e); updateSystemDot(false); }
     }
 

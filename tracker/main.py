@@ -8,8 +8,10 @@ from .tray import TrayApp
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-# IMPORTANTE: Altere aqui para o IP do seu Home Assistant!
-BACKEND_URL = "http://localhost:8000"  # Ex: "http://192.168.0.10:8000"
+# IMPORTANTE: Altere para o IP do seu Home Assistant!
+# Exemplo: "http://192.168.1.15:8000"
+# O IP é o mesmo que você usa para acessar o HA no navegador, só troca a porta 8123 por 8000.
+BACKEND_URL = "http://homeassistant.local:8000"
 
 monitor = WindowMonitor()
 sender = DataSender(BACKEND_URL)

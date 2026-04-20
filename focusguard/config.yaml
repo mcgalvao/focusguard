@@ -1,5 +1,5 @@
 name: "FocusGuard Backend"
-version: "1.0.5"
+version: "1.0.6"
 slug: "focusguard-backend"
 description: "Servidor e Dashboard do FocusGuard - Sistema Anti-procrastinação."
 arch:
@@ -12,6 +12,10 @@ ingress: true
 ingress_port: 8000
 panel_icon: mdi:brain
 panel_title: "FocusGuard"
+ports:
+  8000/tcp: 8000
+ports_description:
+  8000/tcp: "FocusGuard API (para o Tracker Windows)"
 map:
   - config:rw
 options:
