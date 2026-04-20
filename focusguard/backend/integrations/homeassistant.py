@@ -97,6 +97,43 @@ class HomeAssistantClient:
         except Exception as e:
             logger.error(f"HA history error: {e}")
             return {"visited": False, "error": str(e)}
+    async def get_person_history_for_date(self, target_date: str) -> list:
+        start_time = f"{target_date}T00:00:00"
+        end_time = f"{target_date}T23:59:59"
+        
+        try:
+            resp = await self._client.get(
+                f"{self.url}/api/history/period/{start_time}",
+                headers=self.headers,
+                params={
+                    "filter_entity_id": self.person_entity,
+                    "minimal_response": "true",
+                    "no_attributes": "true",
+                    "end_time": end_time
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data[0] if data and len(data) > 0 else []
+        except Exception as e:
+            logger.error(f"HA history error for date {target_date}: {e}")
+            return []
 
+    async def update_sensor_state(self, entity_id: str, state: str, attributes: dict = None):
+        try:
+            payload = {"state": state}
+            if attributes:
+                payload["attributes"] = attributes
+                
+            resp = await self._client.post(
+                f"{self.url}/api/states/{entity_id}",
+                headers=self.headers,
+                json=payload
+            )
+            resp.raise_for_status()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update HA sensor {entity_id}: {e}")
+            return False
     async def close(self):
         await self._client.aclose()

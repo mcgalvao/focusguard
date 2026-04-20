@@ -35,24 +35,28 @@ class PresenceService:
         pass # Deprecated by new business rules
 
     async def is_useful_time(self) -> dict:
-        is_home = await self.ha.is_home()
-        if not is_home:
+        ha_state = await self.ha.get_person_state()
+        if ha_state.get("state") != "home":
             return {"is_useful": False, "reason": "not_home"}
 
         now = datetime.now()
         if now.hour < 8 or now.hour >= 22:
             return {"is_useful": False, "reason": "outside_schedule"}
 
-        last_log = await db.get_last_presence()
-        if last_log and last_log["state"] == "home":
+        last_changed_str = ha_state.get("last_changed")
+        if last_changed_str:
             try:
-                arrival_time = datetime.fromisoformat(last_log["timestamp"])
+                # last_changed is UTC ISO format from HA
+                arrival_time = datetime.fromisoformat(last_changed_str.replace("Z", "+00:00")).astimezone()
+                # Remove timezone info to match 'now' which is naive local time
+                arrival_time = arrival_time.replace(tzinfo=None)
+                
                 elapsed_minutes = (now - arrival_time).total_seconds() / 60.0
                 if elapsed_minutes < 35:
                     grace_end = arrival_time + timedelta(minutes=35)
                     return {"is_useful": False, "reason": "grace_period", "deadline": grace_end.isoformat()}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Error parsing HA last_changed: {e}")
 
         end_of_day = now.replace(hour=22, minute=0, second=0, microsecond=0)
         return {"is_useful": True, "reason": "home_active", "deadline": end_of_day.isoformat()}

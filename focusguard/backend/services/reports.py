@@ -92,34 +92,36 @@ class ReportService:
         return report
 
     async def _calculate_useful_minutes_from_logs(self, target_date: str) -> float:
-        db_conn = await db.get_db()
-        try:
-            cursor = await db_conn.execute(
-                "SELECT state, timestamp FROM presence_logs WHERE date(timestamp) < ? ORDER BY timestamp DESC LIMIT 1", 
-                (target_date,)
-            )
-            row = await cursor.fetchone()
-            initial_state = row["state"] if row else "not_home"
-            
-            cursor = await db_conn.execute(
-                "SELECT state, timestamp FROM presence_logs WHERE date(timestamp) = ? ORDER BY timestamp", 
-                (target_date,)
-            )
-            logs = await cursor.fetchall()
-        finally:
-            await db_conn.close()
-
+        ha_history = await self.ha.get_person_history_for_date(target_date)
+        
         intervals = []
-        current_state = initial_state
+        # Find the first state to assume initial state if the first record doesn't start at midnight
+        # Note: HA history API /api/history/period/ usually returns the state at the start_time as the first element
+        
+        current_state = "not_home"
         current_start = datetime.fromisoformat(f"{target_date}T00:00:00")
         
-        for row in logs:
-            ts = datetime.fromisoformat(row["timestamp"])
-            new_state = row["state"]
-            if current_state == "home":
-                intervals.append((current_start, ts))
-            current_state = new_state
-            current_start = ts
+        if ha_history:
+            # First element represents the state at or slightly before the start_time
+            current_state = ha_history[0].get("state", "not_home")
+            # We don't change current_start, it remains 00:00:00 for the first interval
+            
+            for entry in ha_history[1:]:
+                # Parse HA timestamp to local naive datetime
+                ts_str = entry.get("last_changed")
+                if not ts_str:
+                    continue
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00")).astimezone().replace(tzinfo=None)
+                except Exception:
+                    continue
+                    
+                new_state = entry.get("state", "not_home")
+                if current_state == "home":
+                    intervals.append((current_start, ts))
+                    
+                current_state = new_state
+                current_start = ts
             
         if current_state == "home":
             end_time = datetime.fromisoformat(f"{target_date}T23:59:59")

@@ -167,7 +167,7 @@ async def receive_activity(batch: ActivityBatch, background_tasks: BackgroundTas
 
 
 @app.get("/api/status")
-async def get_current_status():
+async def get_current_status(background_tasks: BackgroundTasks):
     import time
     if _presence_service is None:
         return {"status": "not_ready", "is_home": False, "is_useful_time": False, "is_studying": False, "tracker_connected": False}
@@ -190,7 +190,55 @@ async def get_current_status():
             result["procrastination_pct"] = 0.0
             result["study_efficiency_pct"] = 0.0
             
+    background_tasks.add_task(_update_ha_sensor, result, report if _report_service else None)
     return result
+
+async def _update_ha_sensor(status_dict, report_dict):
+    if not _ha_client:
+        return
+    
+    if not status_dict.get("tracker_connected"):
+        state = "Tracker Offline"
+        icon = "mdi:lan-disconnect"
+    elif status_dict.get("is_studying"):
+        state = "Estudando Focado"
+        icon = "mdi:brain"
+    elif status_dict.get("is_useful_time"):
+        state = "Distraído (Ocioso)"
+        icon = "mdi:alert-circle-outline"
+    elif status_dict.get("is_home"):
+        state = "Livre (Em Casa)"
+        icon = "mdi:home"
+    else:
+        state = "Fora de Casa"
+        icon = "mdi:car"
+        
+    attrs = {
+        "friendly_name": "FocusGuard",
+        "icon": icon,
+    }
+    
+    if report_dict:
+        attrs["study_efficiency"] = f"{round(report_dict.get('study_efficiency_pct', 0))}%"
+        attrs["procrastination"] = f"{round(report_dict.get('procrastination_pct', 0))}%"
+        
+        def fmt_min(m):
+            h = int(m // 60)
+            mins = int(m % 60)
+            return f"{h}h {mins}m" if h > 0 else f"{mins}m"
+            
+        attrs["total_study"] = fmt_min(report_dict.get("total_study_minutes", 0))
+        attrs["total_useful"] = fmt_min(report_dict.get("total_useful_minutes", 0))
+        
+        top_kws = report_dict.get("top_keywords", [])
+        if top_kws:
+            attrs["top_keyword"] = top_kws[0]["name"]
+            
+        last_class = status_dict.get("last_classification")
+        if last_class and last_class.get("classification"):
+            attrs["last_reason"] = last_class["classification"].get("reason", "")
+            
+    await _ha_client.update_sensor_state("sensor.focusguard_status", state, attrs)
 
 
 @app.get("/api/report/today")
