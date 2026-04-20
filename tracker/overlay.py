@@ -4,6 +4,18 @@ Small, draggable, always-on-top status indicator with reason and countdown.
 """
 import tkinter as tk
 import time
+import ctypes
+
+
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+def _get_idle_seconds() -> float:
+    lii = LASTINPUTINFO()
+    lii.cbSize = ctypes.sizeof(lii)
+    if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii)):
+        return (ctypes.windll.kernel32.GetTickCount() - lii.dwTime) / 1000.0
+    return 0.0
 
 
 class TrackerOverlay:
@@ -97,6 +109,21 @@ class TrackerOverlay:
                                    font=('Segoe UI', 7))
         self._lbl_timer.pack(side=tk.RIGHT)
 
+        # ── Row 3b: Idle Counter ────────────────────────────────
+        row3b = tk.Frame(self._frame_inner, bg='#1e293b')
+        row3b.pack(fill='x', pady=(1, 0))
+        self._row3b = row3b
+
+        tk.Label(row3b, text='💤 Inativo:',
+                 bg='#1e293b', fg='#475569',
+                 font=('Segoe UI', 7)).pack(side=tk.LEFT)
+
+        self._lbl_idle = tk.Label(row3b, text='0s',
+                                  bg='#1e293b', fg='#475569',
+                                  font=('Segoe UI', 7, 'bold'))
+        self._lbl_idle.pack(side=tk.LEFT, padx=(4, 0))
+        self._lbl_idle_prefix = row3b.winfo_children()[0]
+
         # ── Row 4: Pomodoro Controls ─────────────────────────────────────
         self._row_pomo = tk.Frame(self._frame_inner, bg='#1e293b')
         self._row_pomo.pack(fill='x', pady=(6, 0))
@@ -142,13 +169,27 @@ class TrackerOverlay:
         self.root.geometry(f'+{x}+{y}')
 
     def _tick(self):
-        """Update the countdown timer and pomodoro every second."""
+        """Update the countdown timer, pomodoro, and idle counter every second."""
         now = time.time()
         
         # Backend check timer
         elapsed = now - self._last_check_time
         remaining = max(0, int(self._next_check_in - elapsed))
         self._lbl_timer.config(text=f'Auto: {remaining}s')
+
+        # Idle counter — read directly from Windows
+        idle_secs = _get_idle_seconds()
+        if idle_secs < 60:
+            idle_text = f'{int(idle_secs)}s'
+            idle_color = '#475569'  # muted gray
+        elif idle_secs < 120:
+            idle_text = f'{int(idle_secs // 60)}m {int(idle_secs % 60)}s'
+            idle_color = '#f59e0b'  # amber warning
+        else:
+            idle_text = f'{int(idle_secs // 60)}m {int(idle_secs % 60)}s'
+            idle_color = '#ef4444'  # red alert
+        self._lbl_idle.config(text=idle_text, fg=idle_color)
+        self._lbl_idle_prefix.config(fg=idle_color)
 
         # Pomodoro timer
         if self._pomo_running:
