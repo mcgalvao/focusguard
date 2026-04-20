@@ -1,20 +1,26 @@
 #!/usr/bin/with-contenv bashio
 
-echo "Iniciando FocusGuard Add-on..."
+echo "=== run.sh iniciado ==="
 
-# O add-on salva os dados em /data para persistência
-export DATA_DIR="/data/focusguard"
-mkdir -p $DATA_DIR
-
-# O banco de dados e os tokens ficarão na pasta do Home Assistant (visível pelo Samba)
-# para que você possa colocar o credentials.json lá.
 export CONFIG_DIR="/config/focusguard"
 mkdir -p $CONFIG_DIR
 
 export DATA_DIR="/data/focusguard"
 mkdir -p $DATA_DIR
 
-echo "=== Starting FocusGuard Backend ==="
-
 cd /app
-exec python3 -u -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level info
+echo "=== Testando Python ==="
+python3 --version 2>&1 || echo "ERRO: python3 nao encontrado"
+
+echo "=== Testando uvicorn ==="
+python3 -c "import uvicorn; print('uvicorn OK')" 2>&1 || echo "ERRO: uvicorn nao instalado"
+
+echo "=== Testando imports do backend ==="
+python3 -c "from backend.config import AppConfig; print('config OK')" 2>&1 || echo "ERRO: import backend falhou"
+
+echo "=== Iniciando servidor ==="
+exec python3 -u -m uvicorn backend.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --log-level info \
+    2>&1
