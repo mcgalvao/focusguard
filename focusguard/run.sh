@@ -15,4 +15,4 @@ echo "Por favor, coloque o arquivo credentials.json na pasta /config/focusguard/
 
 # Start the FastAPI server
 cd /app
-exec python3 -m backend.main
+exec python3 -u -m backend.main

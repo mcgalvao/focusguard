@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchStatus() {
         try {
-            const res = await fetch('/api/status');
+            const res = await fetch('api/status');
             const data = await res.json();
             updateStatusUI(data); updateSystemDot(true);
         } catch (e) { console.error(e); updateSystemDot(false); }
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchReport() {
         try {
-            const res = await fetch('/api/report/today');
+            const res = await fetch('api/report/today');
             const data = await res.json();
             updateReportUI(data);
         } catch (e) { console.error(e); }
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = document.getElementById('google-tasks-list');
         list.innerHTML = '<div class="empty-state">Carregando tarefas do Google...</div>';
         try {
-            const res = await fetch('/api/tasks'); const data = await res.json();
+            const res = await fetch('api/tasks'); const data = await res.json();
             if (data.status === 'not_initialized') {
                 list.innerHTML = `<div class="empty-state text-amber"><i class="ph ph-warning" style="font-size:2rem; margin-bottom:1rem;"></i><br>Google Tasks não inicializado.</div>`;
                 return;
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cb = div.querySelector('.task-checkbox');
             cb.addEventListener('click', async () => {
                 cb.innerHTML = '...';
-                try { await fetch(`/api/tasks/${task.id}/complete`, {method: 'POST'}); fetchTasks(); } 
+                try { await fetch(`api/tasks/${task.id}/complete`, {method: 'POST'}); fetchTasks(); } 
                 catch(e) { cb.innerHTML = ''; console.error(e); }
             });
         }

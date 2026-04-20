@@ -7,8 +7,10 @@ arch:
   - amd64
 startup: application
 boot: auto
-ports:
-  8000/tcp: 8000
+ingress: true
+ingress_port: 8000
+panel_icon: mdi:brain
+panel_title: "FocusGuard"
 map:
   - config:rw
 options:
