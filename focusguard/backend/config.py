@@ -70,15 +70,26 @@ class AppConfig:
             try:
                 with open(ADDON_OPTIONS_PATH, "r", encoding="utf-8") as f:
                     options = json.load(f)
-                # Use internal supervisor API URL
-                ha_data["url"] = "http://supervisor/core"
-                # Priority: ha_token from UI > SUPERVISOR_TOKEN env > app_config token
+
                 ha_token = options.get("ha_token", "").strip()
                 supervisor_token = os.environ.get("SUPERVISOR_TOKEN", "").strip()
-                ha_data["token"] = ha_token if ha_token else (supervisor_token if supervisor_token else ha_data.get("token", ""))
+
+                if ha_token:
+                    # Use direct HA URL with Long-Lived Token
+                    ha_data["url"] = "http://homeassistant:8123"
+                    ha_data["token"] = ha_token
+                    print(f"[Config] Using Long-Lived Token with homeassistant:8123")
+                elif supervisor_token:
+                    # Use supervisor proxy with SUPERVISOR_TOKEN (requires homeassistant_api: true)
+                    ha_data["url"] = "http://supervisor/core"
+                    ha_data["token"] = supervisor_token
+                    print(f"[Config] Using SUPERVISOR_TOKEN with supervisor/core")
+                else:
+                    print(f"[Config] WARNING: No token available!")
+
                 ha_data["person_entity"] = options.get("person_entity", ha_data.get("person_entity"))
                 ha_data["hospital_zone"] = options.get("hospital_zone", ha_data.get("hospital_zone"))
-                print(f"[Config] Running as HA Add-on. Entity: {ha_data['person_entity']}. Token set: {bool(ha_data['token'])}")
+                print(f"[Config] Entity: {ha_data['person_entity']}. Token set: {bool(ha_data.get('token'))}")
             except Exception as e:
                 print(f"[Config] Error loading Add-on options: {e}")
 
