@@ -1,9 +1,15 @@
 import win32gui
 import win32process
-import win32api
 import psutil
 import time
+import ctypes
 from datetime import datetime
+
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", ctypes.c_uint),
+        ("dwTime", ctypes.c_uint),
+    ]
 
 class WindowMonitor:
     def __init__(self):
@@ -35,10 +41,13 @@ class WindowMonitor:
             return None
 
     def get_idle_time(self) -> float:
-        """Returns the number of seconds since the last user input."""
+        """Returns the number of seconds since the last user input using ctypes."""
         try:
-            last_input = win32api.GetLastInputInfo()
-            current_tick = win32api.GetTickCount()
-            return (current_tick - last_input) / 1000.0
+            lii = LASTINPUTINFO()
+            lii.cbSize = ctypes.sizeof(lii)
+            if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii)):
+                millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+                return millis / 1000.0
         except Exception:
-            return 0.0
+            pass
+        return 0.0
