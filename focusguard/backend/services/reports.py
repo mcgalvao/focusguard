@@ -11,12 +11,15 @@ from .. import database as db
 from ..integrations.homeassistant import HomeAssistantClient
 from ..integrations.google_tasks import GoogleTasksClient
 
+from ..config import AppConfig
+
 logger = logging.getLogger("focusguard.reports")
 
 class ReportService:
-    def __init__(self, ha_client: HomeAssistantClient, gtasks_client: GoogleTasksClient):
+    def __init__(self, ha_client: HomeAssistantClient, gtasks_client: GoogleTasksClient, config: AppConfig):
         self.ha = ha_client
         self.gtasks = gtasks_client
+        self.config = config
 
     async def generate_daily_report(self, target_date: str = None) -> dict:
         if not target_date:
@@ -56,11 +59,23 @@ class ReportService:
             hosp = await db.get_hospital_visit_today()
             if hosp:
                 hospital_arrival = hosp.get("arrival_time")
-            home = await db.get_latest_home_arrival_today()
-            if home:
-                home_arrival = home.get("arrival_time")
-                study_deadline = home.get("study_deadline")
-                total_useful_minutes = home.get("calculated_useful_minutes", 0)
+            
+            if self.config.study_schedule.mode == "dynamic":
+                home = await db.get_latest_home_arrival_today()
+                if home:
+                    home_arrival = home.get("arrival_time")
+                    study_deadline = home.get("study_deadline")
+                    total_useful_minutes = home.get("calculated_useful_minutes", 0)
+            else:
+                # Fixed schedule mode: calculate total minutes for today
+                day_name = datetime.fromisoformat(target_date).strftime("%A").lower() if target_date else date.today().strftime("%A").lower()
+                fixed_intervals = self.config.study_schedule.fixed.get(day_name, [])
+                for interval in fixed_intervals:
+                    start_str, end_str = interval.split("-")
+                    sh, sm = map(int, start_str.split(":"))
+                    eh, em = map(int, end_str.split(":"))
+                    duration = (eh * 60 + em) - (sh * 60 + sm)
+                    total_useful_minutes += max(0, duration)
 
         efficiency = 0
         if total_useful_minutes > 0:

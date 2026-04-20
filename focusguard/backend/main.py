@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
         _gtasks_client = GoogleTasksClient(_config.google_tasks.task_list_name)
         _presence_service = PresenceService(_ha_client, _config)
         _activity_service = ActivityService(_config)
-        _report_service = ReportService(_ha_client, _gtasks_client)
+        _report_service = ReportService(_ha_client, _gtasks_client, _config)
         logger.info("Services initialized OK")
 
         await db.init_db()
