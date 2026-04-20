@@ -14,7 +14,5 @@ COPY dashboard /app/dashboard
 COPY config.yaml /app/config.yaml
 
 # Copy run script
-COPY run.sh /app/run.sh
-RUN chmod a+x /app/run.sh
-
-CMD [ "/app/run.sh" ]
+COPY run.sh /
+RUN chmod a+x /run.sh
