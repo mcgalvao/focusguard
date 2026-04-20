@@ -2,6 +2,8 @@ import asyncio
 import time
 import logging
 import threading
+import re
+import unicodedata
 from monitor import WindowMonitor
 from sender import DataSender
 from tray import TrayApp
@@ -32,6 +34,44 @@ _last_dialog_time = 0         # debounce: at least 2 min between dialogs
 _SKIP_TITLES = {'tk', '', 'program manager', 'focusguard'}
 _SKIP_APPS   = {'explorer.exe', 'searchhost.exe', 'shellexperiencehost.exe',
                 'startmenuexperiencehost.exe', 'textinputhost.exe'}
+
+# Local keyword cache - refreshed from backend every cycle
+_cached_keywords: dict = {}
+
+
+def _normalize(text: str) -> str:
+    return unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8').lower()
+
+
+def _local_classify(window_title: str, app_name: str) -> str:
+    """Quick local classification using cached keywords. Returns 'study', 'blacklist', or 'unknown'."""
+    t = _normalize(window_title)
+    a = _normalize(app_name)
+    
+    all_blacklist = (
+        _cached_keywords.get('user_blacklist', []) +
+        _cached_keywords.get('system_blacklist', [])
+    )
+    for kw in all_blacklist:
+        kw_n = _normalize(kw)
+        if kw_n and (kw_n in t or kw_n in a):
+            return 'blacklist'
+    
+    all_study = (
+        _cached_keywords.get('user_study', []) +
+        _cached_keywords.get('system_study', [])
+    )
+    for kw in all_study:
+        kw_n = _normalize(kw)
+        if not kw_n:
+            continue
+        if len(kw_n) <= 5:
+            if re.search(r'\b' + re.escape(kw_n) + r'\b', t):
+                return 'study'
+        elif kw_n in t or kw_n in a:
+            return 'study'
+    
+    return 'unknown'
 
 
 def on_quit():
@@ -142,6 +182,15 @@ def _maybe_ask_keyword(status: dict, last_window: dict | None):
     if title in _ignored_windows:
         return
 
+    # Local pre-classification using cached keywords (avoids timing issues with backend)
+    local_result = _local_classify(title, app)
+    if local_result == 'study':
+        logger.debug(f"[LOCAL] Janela reconhecida como estudo localmente: '{title[:60]}'")
+        return
+    if local_result == 'blacklist':
+        logger.debug(f"[LOCAL] Janela reconhecida como distração localmente: '{title[:60]}'")
+        return
+
     _dialog_open = True
     _last_dialog_time = time.time()
 
@@ -181,6 +230,7 @@ async def main_loop():
     last_send_time = 0  # Set to 0 so first evaluation happens immediately
     last_window = None
     window_start_time = time.time()
+    last_kw_refresh_time = 0  # Keywords cache refresh timer
 
     overlay.set_status('connecting', 'Aguardando backend...', SEND_INTERVAL)
     logger.info("Tracker iniciado. Conectando ao backend...")
@@ -220,6 +270,17 @@ async def main_loop():
                     batch.clear()
                 else:
                     logger.warning("[BATCH] Falha ao enviar — mantendo buffer.")
+
+            # ── Refresh keyword cache every 5 minutes (or first run) ──────
+            global _cached_keywords
+            if current_time - last_kw_refresh_time >= 300 or not _cached_keywords:
+                kw_data = await sender.fetch_keywords()
+                if kw_data:
+                    _cached_keywords = kw_data
+                    last_kw_refresh_time = current_time
+                    logger.debug(f"[KEYWORDS] Cache atualizado: "
+                                 f"{len(_cached_keywords.get('user_study',[]))} estudo, "
+                                 f"{len(_cached_keywords.get('user_blacklist',[]))} blacklist")
 
             # ── Get current status from backend ───────────────────────────
             status = await sender.get_status()

@@ -45,5 +45,14 @@ class DataSender:
             logger.error(f"Error adding keyword: {e}")
             return False
 
+    async def fetch_keywords(self) -> dict:
+        try:
+            resp = await self.client.get(f"{self.backend_url}/api/keywords")
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            logger.error(f"Error fetching keywords: {e}")
+            return {}
+
     async def close(self):
         await self.client.aclose()
