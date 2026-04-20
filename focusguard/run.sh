@@ -11,8 +11,10 @@ mkdir -p $DATA_DIR
 export CONFIG_DIR="/config/focusguard"
 mkdir -p $CONFIG_DIR
 
-echo "Por favor, coloque o arquivo credentials.json na pasta /config/focusguard/ pelo Samba do Home Assistant!"
+export DATA_DIR="/data/focusguard"
+mkdir -p $DATA_DIR
 
-# Start the FastAPI server
+echo "=== Starting FocusGuard Backend ==="
+
 cd /app
-exec python3 -u -m backend.main
+exec python3 -u -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --log-level info

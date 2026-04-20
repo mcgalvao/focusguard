@@ -7,7 +7,7 @@ import os
 import json
 from typing import Optional
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app_config.yaml")
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
 ADDON_OPTIONS_PATH = "/data/options.json"
 
 
