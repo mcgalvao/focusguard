@@ -59,27 +59,14 @@ class ReportService:
             hosp = await db.get_hospital_visit_today()
             if hosp:
                 hospital_arrival = hosp.get("arrival_time")
-            
-            if self.config.study_schedule.mode == "dynamic":
-                home = await db.get_latest_home_arrival_today()
-                if home:
-                    home_arrival = home.get("arrival_time")
-                    study_deadline = home.get("study_deadline")
-                    total_useful_minutes = home.get("calculated_useful_minutes", 0)
-            else:
-                # Fixed schedule mode: calculate total minutes for today
-                day_name = datetime.fromisoformat(target_date).strftime("%A").lower() if target_date else date.today().strftime("%A").lower()
-                fixed_intervals = self.config.study_schedule.fixed.get(day_name, [])
-                for interval in fixed_intervals:
-                    start_str, end_str = interval.split("-")
-                    sh, sm = map(int, start_str.split(":"))
-                    eh, em = map(int, end_str.split(":"))
-                    duration = (eh * 60 + em) - (sh * 60 + sm)
-                    total_useful_minutes += max(0, duration)
+
+        total_useful_minutes = await self._calculate_useful_minutes_from_logs(target_date)
 
         efficiency = 0
         if total_useful_minutes > 0:
             efficiency = min(100.0, (total_study_minutes / total_useful_minutes) * 100)
+            
+        procrastination_pct = 100.0 - efficiency if total_useful_minutes > 0 else 0.0
 
         streak = await db.get_current_streak()
 
@@ -89,6 +76,7 @@ class ReportService:
             "total_useful_minutes": total_useful_minutes,
             "total_study_minutes": total_study_minutes,
             "study_efficiency_pct": efficiency,
+            "procrastination_pct": procrastination_pct,
             "tasks_completed": tasks_summary.get("completed", 0),
             "tasks_total": tasks_summary.get("total", 0),
             "hospital_arrival": hospital_arrival,
@@ -102,3 +90,55 @@ class ReportService:
         
         await db.save_daily_report(report)
         return report
+
+    async def _calculate_useful_minutes_from_logs(self, target_date: str) -> float:
+        db_conn = await db.get_db()
+        try:
+            cursor = await db_conn.execute(
+                "SELECT state, timestamp FROM presence_logs WHERE date(timestamp) < ? ORDER BY timestamp DESC LIMIT 1", 
+                (target_date,)
+            )
+            row = await cursor.fetchone()
+            initial_state = row["state"] if row else "not_home"
+            
+            cursor = await db_conn.execute(
+                "SELECT state, timestamp FROM presence_logs WHERE date(timestamp) = ? ORDER BY timestamp", 
+                (target_date,)
+            )
+            logs = await cursor.fetchall()
+        finally:
+            await db_conn.close()
+
+        intervals = []
+        current_state = initial_state
+        current_start = datetime.fromisoformat(f"{target_date}T00:00:00")
+        
+        for row in logs:
+            ts = datetime.fromisoformat(row["timestamp"])
+            new_state = row["state"]
+            if current_state == "home":
+                intervals.append((current_start, ts))
+            current_state = new_state
+            current_start = ts
+            
+        if current_state == "home":
+            end_time = datetime.fromisoformat(f"{target_date}T23:59:59")
+            if target_date == date.today().isoformat():
+                end_time = min(end_time, datetime.now())
+            intervals.append((current_start, end_time))
+
+        total_useful = 0.0
+        for start, end in intervals:
+            day_start = start.replace(hour=8, minute=0, second=0, microsecond=0)
+            day_end = start.replace(hour=22, minute=0, second=0, microsecond=0)
+            
+            is_midnight_start = (start.hour == 0 and start.minute == 0 and start.second == 0)
+            grace_end = start if is_midnight_start else start + timedelta(minutes=35)
+            
+            useful_start = max(grace_end, day_start)
+            useful_end = min(end, day_end)
+            
+            if useful_end > useful_start:
+                total_useful += (useful_end - useful_start).total_seconds() / 60.0
+                
+        return total_useful

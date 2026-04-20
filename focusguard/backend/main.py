@@ -180,6 +180,16 @@ async def get_current_status():
     if _activity_service is not None:
         result["last_classification"] = _activity_service.last_classification
         
+    if _report_service is not None:
+        try:
+            report = await _report_service.generate_daily_report()
+            result["procrastination_pct"] = report.get("procrastination_pct", 0.0)
+            result["study_efficiency_pct"] = report.get("study_efficiency_pct", 0.0)
+        except Exception as e:
+            logger.error(f"Error generating report for status: {e}")
+            result["procrastination_pct"] = 0.0
+            result["study_efficiency_pct"] = 0.0
+            
     return result
 
 

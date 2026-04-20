@@ -77,11 +77,19 @@ class TrackerOverlay:
                                     wraplength=200)
         self._lbl_reason.pack(fill='x', pady=(1, 0))
 
-        # ── Row 3: countdown timer ────────────────────────────────────────
-        self._lbl_timer = tk.Label(self._frame_inner, text='',
+        # ── Row 3: stats and timer ────────────────────────────────────────
+        row3 = tk.Frame(self._frame_inner, bg='#1e293b')
+        row3.pack(fill='x', pady=(2, 0))
+
+        self._lbl_proc = tk.Label(row3, text='Procrastinação: --%',
+                                  bg='#1e293b', fg='#ef4444',
+                                  font=('Segoe UI', 7, 'bold'))
+        self._lbl_proc.pack(side=tk.LEFT)
+
+        self._lbl_timer = tk.Label(row3, text='',
                                    bg='#1e293b', fg='#334155',
-                                   font=('Segoe UI', 7), anchor='e')
-        self._lbl_timer.pack(fill='x', pady=(2, 0))
+                                   font=('Segoe UI', 7))
+        self._lbl_timer.pack(side=tk.RIGHT)
 
     def _bind_drag(self, *widgets):
         for w in widgets:
@@ -104,10 +112,11 @@ class TrackerOverlay:
         self._lbl_timer.config(text=f'Próx. avaliação: {remaining}s')
         self.root.after(1000, self._tick)
 
-    def set_status(self, status: str, reason: str = '', check_interval: int = 30):
+    def set_status(self, status: str, reason: str = '', check_interval: int = 30, proc_pct: float = None):
         """Thread-safe update — called from asyncio thread."""
         self._status = status
         self._reason = reason
+        self._proc_pct = proc_pct
         self._next_check_in = check_interval
         self._last_check_time = time.time()
         self.root.after(0, self._refresh_ui)
@@ -117,6 +126,16 @@ class TrackerOverlay:
         self._dot.config(fg=color)
         self._lbl_status.config(text=label)
         self._lbl_reason.config(text=self._reason)
+        
+        if self._proc_pct is not None:
+            # Color coding: red if > 50%, orange if > 20%, green if <= 20%
+            if self._proc_pct > 50:
+                p_color = '#ef4444'
+            elif self._proc_pct > 20:
+                p_color = '#f59e0b'
+            else:
+                p_color = '#10b981'
+            self._lbl_proc.config(text=f'Procrastinação: {int(self._proc_pct)}%', fg=p_color)
 
     def show_keyword_dialog(self, window_title: str, app_name: str,
                             on_confirm, on_ignore):

@@ -211,6 +211,7 @@ async def main_loop():
                 logger.warning("[STATUS] Backend offline.")
             else:
                 reason = _build_reason(status, last_window)
+                proc_pct = status.get("procrastination_pct")
 
                 if status.get("is_studying"):
                     overlay_status = "studying"
@@ -229,7 +230,7 @@ async def main_loop():
                     logger.info(f"[STATUS] 💤 Livre | {reason}")
 
                 tray.set_status(overlay_status)
-                overlay.set_status(overlay_status, reason, SEND_INTERVAL)
+                overlay.set_status(overlay_status, reason, SEND_INTERVAL, proc_pct)
 
             last_send_time = current_time
 

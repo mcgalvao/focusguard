@@ -100,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateReportUI(report) {
         document.getElementById('metric-study').textContent = formatTime(report.total_study_minutes);
         document.getElementById('metric-useful').textContent = formatTime(report.total_useful_minutes);
+        document.getElementById('metric-proc').textContent = `${Math.round(report.procrastination_pct || 0)}%`;
         document.getElementById('metric-streak').textContent = `${report.streak_days} dias`;
         const eff = Math.round(report.study_efficiency_pct);
         document.getElementById('efficiency-value').textContent = `${eff}%`;

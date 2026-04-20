@@ -32,31 +32,7 @@ class PresenceService:
         return ha_state
 
     async def _handle_home_arrival(self):
-        today = date.today().isoformat()
-        now = datetime.now()
-        
-        hospital_data = await self.ha.was_at_hospital_today()
-        if not hospital_data.get("visited", False):
-            return
-
-        schedule_config = self.config.study_schedule
-        if schedule_config.mode == "dynamic":
-            end_time = now.replace(hour=schedule_config.end_of_day_hour, minute=0, second=0, microsecond=0)
-            
-            if now >= end_time:
-                await db.log_home_arrival(today, now.isoformat(), 0, end_time.isoformat())
-                return
-                
-            time_left_minutes = (end_time - now).total_seconds() / 60.0
-            useful_minutes = time_left_minutes * schedule_config.useful_fraction
-            deadline = now + timedelta(minutes=useful_minutes)
-            
-            await db.log_home_arrival(
-                today, 
-                now.isoformat(), 
-                useful_minutes, 
-                deadline.isoformat()
-            )
+        pass # Deprecated by new business rules
 
     async def is_useful_time(self) -> dict:
         is_home = await self.ha.is_home()
@@ -64,31 +40,22 @@ class PresenceService:
             return {"is_useful": False, "reason": "not_home"}
 
         now = datetime.now()
-        schedule_config = self.config.study_schedule
+        if now.hour < 8 or now.hour >= 22:
+            return {"is_useful": False, "reason": "outside_schedule"}
 
-        if schedule_config.mode == "dynamic":
-            hospital_data = await self.ha.was_at_hospital_today()
-            if hospital_data.get("visited", False):
-                latest_arrival = await db.get_latest_home_arrival_today()
-                if latest_arrival and latest_arrival.get("study_deadline"):
-                    deadline = datetime.fromisoformat(latest_arrival["study_deadline"])
-                    if now <= deadline:
-                        return {"is_useful": True, "reason": "dynamic_schedule", "deadline": deadline.isoformat()}
-                    else:
-                        return {"is_useful": False, "reason": "past_deadline"}
+        last_log = await db.get_last_presence()
+        if last_log and last_log["state"] == "home":
+            try:
+                arrival_time = datetime.fromisoformat(last_log["timestamp"])
+                elapsed_minutes = (now - arrival_time).total_seconds() / 60.0
+                if elapsed_minutes < 35:
+                    grace_end = arrival_time + timedelta(minutes=35)
+                    return {"is_useful": False, "reason": "grace_period", "deadline": grace_end.isoformat()}
+            except Exception:
+                pass
 
-        day_name = now.strftime("%A").lower()
-        fixed_intervals = schedule_config.fixed.get(day_name, [])
-        
-        for interval in fixed_intervals:
-            start_str, end_str = interval.split("-")
-            start_time = now.replace(hour=int(start_str.split(":")[0]), minute=int(start_str.split(":")[1]), second=0, microsecond=0)
-            end_time = now.replace(hour=int(end_str.split(":")[0]), minute=int(end_str.split(":")[1]), second=0, microsecond=0)
-            
-            if start_time <= now <= end_time:
-                return {"is_useful": True, "reason": "fixed_schedule", "deadline": end_time.isoformat()}
-
-        return {"is_useful": False, "reason": "outside_schedule"}
+        end_of_day = now.replace(hour=22, minute=0, second=0, microsecond=0)
+        return {"is_useful": True, "reason": "home_active", "deadline": end_of_day.isoformat()}
 
     async def get_current_status(self) -> dict:
         ha_state = await self.ha.get_person_state()
