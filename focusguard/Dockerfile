@@ -1,10 +1,8 @@
-ARG BUILD_FROM=ghcr.io/hassio-addons/base-python:13.0.0
-FROM $BUILD_FROM
+FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install
+# Install dependencies
 COPY backend/requirements.txt /app/
 RUN pip3 install --no-cache-dir -r requirements.txt
 
@@ -13,6 +11,5 @@ COPY backend /app/backend
 COPY dashboard /app/dashboard
 COPY app_config.yaml /app/config.yaml
 
-# Copy run script
-COPY run.sh /
-RUN chmod a+x /run.sh
+# Run uvicorn directly as PID 1
+CMD ["python3", "-u", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]

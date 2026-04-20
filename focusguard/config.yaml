@@ -1,5 +1,5 @@
 name: "FocusGuard Backend"
-version: "1.0.2"
+version: "1.0.3"
 slug: "focusguard-backend"
 description: "Servidor e Dashboard do FocusGuard - Sistema Anti-procrastinação."
 arch:
@@ -7,7 +7,6 @@ arch:
   - amd64
 startup: application
 boot: auto
-init: false
 ingress: true
 ingress_port: 8000
 panel_icon: mdi:brain
