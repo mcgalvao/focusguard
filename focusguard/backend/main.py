@@ -35,6 +35,7 @@ _activity_service = None
 _report_service = None
 _scheduler: Optional[AsyncIOScheduler] = None
 _last_tracker_ping: Optional[float] = None  # Unix timestamp of last tracker batch
+_user_keywords: list = []  # Runtime keywords added by user via dialog
 
 
 class ActivityItem(BaseModel):
@@ -80,6 +81,17 @@ async def lifespan(app: FastAPI):
         logger.info("Services initialized OK")
 
         await db.init_db()
+        # Load user-added keywords from disk
+        user_kw_path = os.path.join(DATA_DIR, "user_keywords.json")
+        if os.path.exists(user_kw_path):
+            try:
+                import json
+                with open(user_kw_path) as f:
+                    _user_keywords.extend(json.load(f))
+                logger.info(f"Loaded {len(_user_keywords)} user keywords from disk")
+            except Exception as e:
+                logger.warning(f"Could not load user_keywords.json: {e}")
+
         logger.info("Database initialized OK")
 
         _scheduler = AsyncIOScheduler()
@@ -198,6 +210,38 @@ async def get_config():
     if _config is None:
         return {}
     return _config.to_dict()
+
+
+@app.get("/api/keywords")
+async def get_keywords():
+    if _config is None:
+        return {"keywords": [], "user_keywords": []}
+    all_kw = list(_config.study_detection.all_study_keywords) + _user_keywords
+    return {"keywords": all_kw, "user_keywords": _user_keywords}
+
+
+class KeywordPayload(BaseModel):
+    keyword: str
+
+
+@app.post("/api/keywords")
+async def add_keyword_endpoint(payload: KeywordPayload):
+    import json
+    kw = payload.keyword.strip().lower()
+    if not kw:
+        return {"success": False, "error": "empty keyword"}
+    if kw not in _user_keywords:
+        _user_keywords.append(kw)
+        user_kw_path = os.path.join(DATA_DIR, "user_keywords.json")
+        try:
+            with open(user_kw_path, "w") as f:
+                json.dump(_user_keywords, f)
+        except Exception as e:
+            logger.warning(f"Could not save user_keywords.json: {e}")
+        if _activity_service is not None:
+            _activity_service.config.study_detection.ophthalmology_keywords.append(kw)
+        logger.info(f"User added keyword: '{kw}'")
+    return {"success": True, "keyword": kw, "total_user_keywords": len(_user_keywords)}
 
 
 # ── Static Dashboard ────────────────────────────────────────────────────────

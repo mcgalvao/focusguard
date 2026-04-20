@@ -4,6 +4,7 @@ from typing import List, Dict
 
 logger = logging.getLogger("tracker.sender")
 
+
 class DataSender:
     def __init__(self, backend_url: str):
         self.backend_url = backend_url.rstrip("/")
@@ -12,7 +13,6 @@ class DataSender:
     async def send_activities(self, activities: List[Dict]) -> bool:
         if not activities:
             return True
-            
         try:
             resp = await self.client.post(
                 f"{self.backend_url}/api/activity",
@@ -32,6 +32,18 @@ class DataSender:
         except Exception as e:
             logger.error(f"Error getting status: {e}")
             return {}
+
+    async def add_keyword(self, keyword: str) -> bool:
+        try:
+            resp = await self.client.post(
+                f"{self.backend_url}/api/keywords",
+                json={"keyword": keyword}
+            )
+            resp.raise_for_status()
+            return True
+        except Exception as e:
+            logger.error(f"Error adding keyword: {e}")
+            return False
 
     async def close(self):
         await self.client.aclose()
