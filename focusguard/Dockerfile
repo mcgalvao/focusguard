@@ -11,7 +11,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY backend /app/backend
 COPY dashboard /app/dashboard
-COPY config.yaml /app/config.yaml
+COPY app_config.yaml /app/config.yaml
 
 # Copy run script
 COPY run.sh /
