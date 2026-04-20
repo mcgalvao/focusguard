@@ -4,53 +4,37 @@ Entry point for the backend orchestrator.
 """
 import os
 import logging
-from datetime import datetime, date
 from contextlib import asynccontextmanager
-from typing import List, Dict, Any
+from typing import List, Optional
 
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Body
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from .config import AppConfig
-from . import database as db
-from .integrations.homeassistant import HomeAssistantClient
-from .integrations.google_tasks import GoogleTasksClient
-from .services.presence import PresenceService
-from .services.activity import ActivityService
-from .services.reports import ReportService
-
-# --- Logging Setup ---
+# ── Logging Setup (must be first) ──────────────────────────────────────────
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(os.path.join(DATA_DIR, "focusguard.log"))
-    ]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger("focusguard")
+logger.info("=== FocusGuard module loaded ===")
 
-config = AppConfig.get()
-ha_client = HomeAssistantClient(
-    config.homeassistant.url, 
-    config.homeassistant.token,
-    config.homeassistant.person_entity,
-    config.homeassistant.hospital_zone
-)
-gtasks_client = GoogleTasksClient(config.google_tasks.task_list_name)
+# ── Globals (populated at startup) ─────────────────────────────────────────
+_config = None
+_ha_client = None
+_gtasks_client = None
+_presence_service = None
+_activity_service = None
+_report_service = None
+_scheduler: Optional[AsyncIOScheduler] = None
 
-presence_service = PresenceService(ha_client, config)
-activity_service = ActivityService(config)
-report_service = ReportService(ha_client, gtasks_client)
-
-scheduler = AsyncIOScheduler()
 
 class ActivityItem(BaseModel):
     timestamp: str
@@ -58,40 +42,79 @@ class ActivityItem(BaseModel):
     window_title: str
     duration_seconds: float
 
+
 class ActivityBatch(BaseModel):
     activities: List[ActivityItem]
 
-async def check_presence_task():
-    try:
-        await presence_service.update_presence()
-    except Exception as e:
-        logger.error(f"Error check_presence: {e}")
-
-async def sync_tasks_task():
-    pass
-
-async def generate_daily_report_task():
-    try:
-        await report_service.generate_daily_report()
-    except Exception as e:
-        logger.error(f"Error daily report: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting FocusGuard Backend...")
-    await db.init_db()
-    
-    scheduler.add_job(check_presence_task, 'interval', seconds=30)
-    scheduler.add_job(sync_tasks_task, 'interval', minutes=15)
-    scheduler.add_job(generate_daily_report_task, 'cron', hour=23, minute=55)
-    scheduler.start()
-    
-    yield
-    
-    logger.info("Shutting down FocusGuard Backend...")
-    scheduler.shutdown()
-    await ha_client.close()
+    global _config, _ha_client, _gtasks_client, _presence_service
+    global _activity_service, _report_service, _scheduler
 
+    logger.info("=== FocusGuard Backend Starting ===")
+
+    try:
+        from .config import AppConfig
+        from . import database as db
+        from .integrations.homeassistant import HomeAssistantClient
+        from .integrations.google_tasks import GoogleTasksClient
+        from .services.presence import PresenceService
+        from .services.activity import ActivityService
+        from .services.reports import ReportService
+
+        _config = AppConfig.get()
+        logger.info("Config loaded OK")
+
+        _ha_client = HomeAssistantClient(
+            _config.homeassistant.url,
+            _config.homeassistant.token,
+            _config.homeassistant.person_entity,
+            _config.homeassistant.hospital_zone,
+        )
+        _gtasks_client = GoogleTasksClient(_config.google_tasks.task_list_name)
+        _presence_service = PresenceService(_ha_client, _config)
+        _activity_service = ActivityService(_config)
+        _report_service = ReportService(_ha_client, _gtasks_client)
+        logger.info("Services initialized OK")
+
+        await db.init_db()
+        logger.info("Database initialized OK")
+
+        _scheduler = AsyncIOScheduler()
+
+        async def _check_presence():
+            try:
+                await _presence_service.update_presence()
+            except Exception as e:
+                logger.error(f"Presence check error: {e}")
+
+        async def _daily_report():
+            try:
+                await _report_service.generate_daily_report()
+            except Exception as e:
+                logger.error(f"Daily report error: {e}")
+
+        _scheduler.add_job(_check_presence, "interval", seconds=30)
+        _scheduler.add_job(_daily_report, "cron", hour=23, minute=55)
+        _scheduler.start()
+        logger.info("Scheduler started OK")
+        logger.info("=== FocusGuard Backend Ready ===")
+
+    except Exception as e:
+        logger.exception(f"STARTUP ERROR: {e}")
+        # Don't crash — let the web server stay up so logs are accessible
+
+    yield
+
+    logger.info("FocusGuard shutting down...")
+    if _scheduler:
+        _scheduler.shutdown()
+    if _ha_client:
+        await _ha_client.close()
+
+
+# ── FastAPI App ─────────────────────────────────────────────────────────────
 app = FastAPI(title="FocusGuard API", lifespan=lifespan)
 
 app.add_middleware(
@@ -102,44 +125,72 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/healthz")
+async def health():
+    return {"status": "ok"}
+
+
 @app.post("/api/activity")
 async def receive_activity(batch: ActivityBatch, background_tasks: BackgroundTasks):
+    if _activity_service is None:
+        return {"status": "not_ready"}
     activities = [a.model_dump() for a in batch.activities]
-    background_tasks.add_task(activity_service.process_activity_batch, activities)
+    background_tasks.add_task(_activity_service.process_activity_batch, activities)
     return {"status": "accepted", "count": len(activities)}
+
 
 @app.get("/api/status")
 async def get_current_status():
-    return await presence_service.get_current_status()
+    if _presence_service is None:
+        return {"status": "not_ready", "is_home": False, "is_useful_time": False, "is_studying": False}
+    return await _presence_service.get_current_status()
+
 
 @app.get("/api/report/today")
 async def get_today_report():
-    return await report_service.generate_daily_report()
+    if _report_service is None:
+        return {"status": "not_ready"}
+    return await _report_service.generate_daily_report()
+
 
 @app.get("/api/report/{target_date}")
 async def get_report(target_date: str):
+    if _report_service is None:
+        return {"status": "not_ready"}
+    from . import database as db
     report = await db.get_daily_report(target_date)
     if not report:
-        report = await report_service.generate_daily_report(target_date)
+        report = await _report_service.generate_daily_report(target_date)
     return report
+
 
 @app.get("/api/tasks")
 async def get_tasks():
-    summary = gtasks_client.get_tasks_summary()
-    if summary.get("total", 0) == 0 and len(summary.get("tasks", [])) == 0:
-        if not gtasks_client._initialized:
-            return {"status": "not_initialized", "message": "Google Tasks needs authentication."}
+    if _gtasks_client is None:
+        return {"status": "not_ready"}
+    summary = _gtasks_client.get_tasks_summary()
+    if not _gtasks_client._initialized:
+        return {"status": "not_initialized", "message": "Google Tasks needs authentication."}
     return summary
+
 
 @app.post("/api/tasks/{task_id}/complete")
 async def complete_task(task_id: str):
-    success = gtasks_client.complete_task(task_id)
+    if _gtasks_client is None:
+        return {"success": False}
+    success = _gtasks_client.complete_task(task_id)
     return {"success": success}
+
 
 @app.get("/api/config")
 async def get_config():
-    return config.to_dict()
+    if _config is None:
+        return {}
+    return _config.to_dict()
 
+
+# ── Static Dashboard ────────────────────────────────────────────────────────
 dashboard_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dashboard")
 if os.path.exists(dashboard_dir):
     app.mount("/static", StaticFiles(directory=dashboard_dir), name="static")
@@ -147,7 +198,3 @@ if os.path.exists(dashboard_dir):
     @app.get("/")
     async def serve_dashboard():
         return FileResponse(os.path.join(dashboard_dir, "index.html"))
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
