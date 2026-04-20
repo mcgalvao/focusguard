@@ -1,0 +1,22 @@
+name: "FocusGuard Backend"
+version: "1.0.0"
+slug: "focusguard_backend"
+description: "Servidor e Dashboard do FocusGuard - Sistema Anti-procrastinação."
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+startup: application
+boot: auto
+ports:
+  8000/tcp: 8000
+map:
+  - config:rw
+options:
+  person_entity: "person.matheus_galvao"
+  hospital_zone: "zone.hospital"
+schema:
+  person_entity: str
+  hospital_zone: str
