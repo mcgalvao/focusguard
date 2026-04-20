@@ -131,19 +131,21 @@ class TrackerOverlay:
         oy = self.root.winfo_y() + self.root.winfo_height() + 8
         dialog.geometry(f'+{ox}+{oy}')
 
-        tk.Label(dialog, text='🔍 Janela não reconhecida',
+        lbl1 = tk.Label(dialog, text='\U0001f50d Janela n\u00e3o reconhecida',
                  bg='#1e293b', fg='#f59e0b',
-                 font=('Segoe UI', 9, 'bold'),
-                 padx=12, pady=(10, 2)).pack(anchor='w')
+                 font=('Segoe UI', 9, 'bold'))
+        lbl1.pack(anchor='w', padx=12, pady=(10, 2))
 
-        title_short = (window_title[:45] + '…') if len(window_title) > 45 else window_title
-        tk.Label(dialog, text=f'  {title_short}',
+        title_short = (window_title[:45] + '\u2026') if len(window_title) > 45 else window_title
+        lbl2 = tk.Label(dialog, text=f'  {title_short}',
                  bg='#1e293b', fg='#94a3b8',
-                 font=('Segoe UI', 8), padx=12).pack(anchor='w')
+                 font=('Segoe UI', 8))
+        lbl2.pack(anchor='w', padx=12)
 
-        tk.Label(dialog, text='Keyword para classificar como estudo:',
+        lbl3 = tk.Label(dialog, text='Keyword para classificar como estudo:',
                  bg='#1e293b', fg='#cbd5e1',
-                 font=('Segoe UI', 8), padx=12, pady=(8, 2)).pack(anchor='w')
+                 font=('Segoe UI', 8))
+        lbl3.pack(anchor='w', padx=12, pady=(8, 2))
 
         entry_var = tk.StringVar()
         entry = tk.Entry(dialog, textvariable=entry_var, width=28,

@@ -28,6 +28,11 @@ _dialog_open = False          # only one dialog at a time
 _ignored_windows = set()      # windows user chose to ignore this session
 _last_dialog_time = 0         # debounce: at least 2 min between dialogs
 
+# Titles/apps to never ask about (system noise, our own overlay, etc.)
+_SKIP_TITLES = {'tk', '', 'program manager', 'focusguard'}
+_SKIP_APPS   = {'explorer.exe', 'searchhost.exe', 'shellexperiencehost.exe',
+                'startmenuexperiencehost.exe', 'textinputhost.exe'}
+
 
 def on_quit():
     global running
@@ -90,9 +95,12 @@ def _maybe_ask_keyword(status: dict, last_window: dict | None):
     if time.time() - _last_dialog_time < 120:  # 2 min debounce
         return
 
-    title = last_window.get("window_title", "")
-    app = last_window.get("app_name", "")
+    title = last_window.get("window_title", "").strip()
+    app = last_window.get("app_name", "").strip().lower()
 
+    # Skip our own overlay and system/shell windows
+    if title.lower() in _SKIP_TITLES or app in _SKIP_APPS:
+        return
     if title in _ignored_windows:
         return
 
