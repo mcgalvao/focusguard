@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusGuard Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="ph-fill ph-target"></i>
+                <span>FocusGuard</span>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-tab="dashboard"><i class="ph ph-squares-four"></i><span>Dashboard</span></li>
+                <li data-tab="timeline"><i class="ph ph-clock-counter-clockwise"></i><span>Timeline</span></li>
+                <li data-tab="tasks"><i class="ph ph-check-square"></i><span>Google Tasks</span></li>
+                <li data-tab="settings"><i class="ph ph-gear"></i><span>Configurações</span></li>
+            </ul>
+            <div class="status-indicator">
+                <div class="status-dot" id="system-status-dot"></div>
+                <span id="system-status-text">Conectando...</span>
+            </div>
+        </nav>
+        <main class="main-content">
+            <section id="view-dashboard" class="view active-view">
+                <header class="topbar">
+                    <div>
+                        <h1 class="greeting">Olá, Matheus 👋</h1>
+                        <p class="subtitle">Aqui está o seu desempenho de hoje.</p>
+                    </div>
+                    <div class="current-date" id="current-date-display">--/--/----</div>
+                </header>
+                <div class="bento-grid">
+                    <div class="bento-card hero-card">
+                        <div class="card-header"><h3>Status Atual</h3></div>
+                        <div class="state-display" id="state-display">
+                            <div class="state-icon pulse" id="state-icon"><i class="ph ph-house"></i></div>
+                            <div class="state-details">
+                                <h2 id="state-title">Analisando...</h2>
+                                <p id="state-subtitle">Aguardando dados</p>
+                            </div>
+                        </div>
+                        <div class="pomodoro-mini">
+                            <div class="pomo-timer" id="pomo-time">25:00</div>
+                            <div class="pomo-controls">
+                                <button id="btn-pomo-start"><i class="ph ph-play"></i></button>
+                                <button id="btn-pomo-reset"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bento-card">
+                        <div class="card-header"><h3>Eficiência</h3><i class="ph ph-trend-up text-accent"></i></div>
+                        <div class="chart-container-donut">
+                            <canvas id="efficiencyChart"></canvas>
+                            <div class="donut-center" id="efficiency-value">0%</div>
+                        </div>
+                        <p class="metric-desc">Tempo Estudado / Tempo Útil</p>
+                    </div>
+                    <div class="bento-card">
+                        <div class="card-header"><h3>Métricas de Tempo</h3></div>
+                        <div class="metrics-list">
+                            <div class="metric-item">
+                                <i class="ph ph-books text-emerald"></i>
+                                <div><p class="metric-label">Tempo de Estudo</p><p class="metric-val" id="metric-study">0h 0m</p></div>
+                            </div>
+                            <div class="metric-item">
+                                <i class="ph ph-hourglass-high text-amber"></i>
+                                <div><p class="metric-label">Tempo Útil Total</p><p class="metric-val" id="metric-useful">0h 0m</p></div>
+                            </div>
+                            <div class="metric-item">
+                                <i class="ph ph-fire text-orange"></i>
+                                <div><p class="metric-label">Ofensiva (Streak)</p><p class="metric-val" id="metric-streak">0 dias</p></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bento-card wide-card">
+                        <div class="card-header"><h3>O que você estudou hoje?</h3></div>
+                        <div class="split-content">
+                            <div class="list-container">
+                                <h4>Top Temas (Keywords)</h4>
+                                <ul id="top-keywords-list" class="data-list"><li>Nenhum dado</li></ul>
+                            </div>
+                            <div class="list-container">
+                                <h4>Top Apps</h4>
+                                <ul id="top-apps-list" class="data-list"><li>Nenhum dado</li></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="view-tasks" class="view hidden">
+                <header class="topbar">
+                    <div>
+                        <h1 class="greeting">Google Tasks</h1>
+                        <p class="subtitle">Suas tarefas pendentes para estudo.</p>
+                    </div>
+                    <button class="btn-primary" id="btn-sync-tasks"><i class="ph ph-arrows-clockwise"></i> Sincronizar</button>
+                </header>
+                <div class="tasks-container">
+                    <div class="tasks-summary-bar">
+                        <div class="task-stat"><span id="task-pending-count">0</span> Pendentes</div>
+                        <div class="task-stat text-emerald"><span id="task-completed-count">0</span> Concluídas</div>
+                    </div>
+                    <ul class="task-list" id="google-tasks-list">
+                        <div class="empty-state">Carregando tarefas...</div>
+                    </ul>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

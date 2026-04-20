@@ -1,0 +1,171 @@
+homeassistant:
+  url: "http://homeassistant.local:8123"
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI0MzJmODIzMDk0NjI0MTUzYTE3MThkZjI0YjgzMjk0NSIsImlhdCI6MTc3NjcwNDExMywiZXhwIjoyMDkyMDY0MTEzfQ.nN_r4F27UP10W1BRNdZ2WXrxA4GsiESoWWuO5dSHSWo"
+  person_entity: "person.matheus_galvao"
+  hospital_zone: "zone.hospital"  # Zone name in HA for the hospital
+
+# Dynamic schedule: study time = (22:00 - arrival_home) * 2/3
+# Only activates AFTER user has been to the hospital that day
+study_schedule:
+  mode: "dynamic"  # "dynamic" or "fixed"
+  end_of_day_hour: 22  # Study cutoff time
+  useful_fraction: 0.6667  # 2/3 of remaining time
+  # Fixed schedule fallback (used when mode is "fixed")
+  fixed:
+    monday:    ["08:00-12:00", "14:00-18:00"]
+    tuesday:   ["08:00-12:00", "14:00-18:00"]
+    wednesday: ["08:00-12:00", "14:00-18:00"]
+    thursday:  ["08:00-12:00", "14:00-18:00"]
+    friday:    ["08:00-12:00", "14:00-18:00"]
+    saturday:  ["08:00-12:00"]
+    sunday:    []
+
+# Study detection: content-based for ophthalmology
+study_detection:
+  # Keywords in window titles that indicate study activity
+  ophthalmology_keywords:
+    - "oftalmologia"
+    - "ophthalmology"
+    - "olho"
+    - "eye"
+    - "retina"
+    - "córnea"
+    - "cornea"
+    - "glaucoma"
+    - "catarata"
+    - "cataract"
+    - "pálpebra"
+    - "conjuntiva"
+    - "esclera"
+    - "úvea"
+    - "uvea"    
+    - "íris"
+    - "cristalino"
+    - "vítreo"
+    - "vitreous"
+    - "mácula"
+    - "macula"
+    - "nervo óptico"
+    - "optic nerve"
+    - "campo visual"
+    - "visual field"
+    - "acuidade"
+    - "refração"
+    - "refraction"
+    - "estrabismo"
+    - "strabismus"
+    - "ceratocone"
+    - "keratoconus"
+    - "OCT"
+    - "topografia"
+    - "fundoscopia"
+    - "fundoscopy"
+    - "biomicroscopia"
+    - "tonometria"
+    - "tonometry"
+    - "paquimetria"
+    - "campimetria"
+    - "perimetry"
+    - "angiografia"
+    - "angiography"
+    - "facoemulsificação"
+    - "phacoemulsification"
+    - "LASIK"
+    - "PRK"
+    - "pterígio"
+    - "blefarite"
+    - "blepharitis"
+    - "dacriocistite"
+    - "uveíte"
+    - "uveitis"
+    - "descolamento"
+    - "detachment"
+    - "retinopatia"
+    - "retinopathy"
+    - "degeneração macular"
+    - "macular degeneration"
+    - "edema macular"
+    - "anti-VEGF"
+    - "Snellen"
+    - "dioptria"
+    - "diopter"
+    - "lente intraocular"
+    - "IOL"
+    - "banco de olhos"
+    - "transplante de córnea"
+
+  # General study keywords (broader academic content)
+  general_study_keywords:
+    - "estudo"
+    - "study"
+    - "aula"
+    - "class"
+    - "curso"
+    - "course"
+    - "prova"
+    - "exam"
+    - "revisão"
+    - "review"
+    - "exercício"
+    - "exercise"
+    - "artigo"
+    - "article"
+    - "paper"
+    - "PubMed"
+    - "SciELO"
+    - "UpToDate"
+    - "Medscape"
+    - "residência"
+    - "residency"
+    - "caso clínico"
+    - "clinical case"
+    - "diagnóstico"
+    - "diagnosis"
+    - "tratamento"
+    - "treatment"
+    - "cirurgia"
+    - "surgery"
+    - "anatomia"
+    - "anatomy"
+    - "fisiologia"
+    - "physiology"
+    - "farmacologia"
+    - "pharmacology"
+    - "patologia"
+    - "pathology"
+    - "Anki"
+    - "flashcard"
+    - ".pdf"
+
+  # Apps that are NEVER study (blacklist)
+  blacklist_keywords:
+    - "YouTube Music"
+    - "Netflix"
+    - "Prime Video"
+    - "Disney+"
+    - "HBO Max"
+    - "Twitch"
+    - "Discord"
+    - "Twitter"
+    - "Instagram"
+    - "Facebook"
+    - "Reddit"
+    - "TikTok"
+    - "Steam"
+    - "Epic Games"
+    - "WhatsApp"
+    - "Telegram"
+    - "Spotify"
+
+pomodoro:
+  focus_minutes: 25
+  short_break_minutes: 5
+  long_break_minutes: 15
+  cycles_before_long_break: 4
+
+notifications:
+  idle_reminder_minutes: 15  # Remind after X min of not studying during useful time
+  pomodoro_enabled: true
+
+google_tasks:
+  task_list_name: "Estudos Oftalmologia"  # Will be created if not exists
