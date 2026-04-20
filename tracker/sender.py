@@ -33,11 +33,11 @@ class DataSender:
             logger.error(f"Error getting status: {e}")
             return {}
 
-    async def add_keyword(self, keyword: str) -> bool:
+    async def add_keyword(self, keyword: str, is_study: bool = True) -> bool:
         try:
             resp = await self.client.post(
                 f"{self.backend_url}/api/keywords",
-                json={"keyword": keyword}
+                json={"keyword": keyword, "is_study": is_study}
             )
             resp.raise_for_status()
             return True

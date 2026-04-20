@@ -142,7 +142,7 @@ class TrackerOverlay:
                  font=('Segoe UI', 8))
         lbl2.pack(anchor='w', padx=12)
 
-        lbl3 = tk.Label(dialog, text='Keyword para classificar como estudo:',
+        lbl3 = tk.Label(dialog, text='Keyword para classificar esta janela:',
                  bg='#1e293b', fg='#cbd5e1',
                  font=('Segoe UI', 8))
         lbl3.pack(anchor='w', padx=12, pady=(8, 2))
@@ -155,10 +155,10 @@ class TrackerOverlay:
         entry.pack(padx=12, pady=(0, 8))
         entry.focus()
 
-        def _confirm():
+        def _add(is_study: bool):
             kw = entry_var.get().strip()
             if kw:
-                on_confirm(kw)
+                on_confirm(kw, is_study)
             dialog.destroy()
 
         def _ignore():
@@ -170,15 +170,20 @@ class TrackerOverlay:
 
         tk.Button(btn_row, text='Ignorar', command=_ignore,
                   bg='#334155', fg='#94a3b8', relief='flat',
-                  font=('Segoe UI', 8), padx=8, pady=3,
+                  font=('Segoe UI', 8), padx=6, pady=3,
                   cursor='hand2').pack(side=tk.LEFT, padx=(0, 6))
 
-        tk.Button(btn_row, text='Adicionar', command=_confirm,
-                  bg='#8b5cf6', fg='white', relief='flat',
-                  font=('Segoe UI', 8, 'bold'), padx=8, pady=3,
+        tk.Button(btn_row, text='Distração', command=lambda: _add(False),
+                  bg='#ef4444', fg='white', relief='flat',
+                  font=('Segoe UI', 8, 'bold'), padx=6, pady=3,
+                  cursor='hand2').pack(side=tk.LEFT, padx=(0, 6))
+
+        tk.Button(btn_row, text='Estudo', command=lambda: _add(True),
+                  bg='#10b981', fg='white', relief='flat',
+                  font=('Segoe UI', 8, 'bold'), padx=6, pady=3,
                   cursor='hand2').pack(side=tk.LEFT)
 
-        entry.bind('<Return>', lambda e: _confirm())
+        entry.bind('<Return>', lambda e: _add(True))
         entry.bind('<Escape>', lambda e: _ignore())
 
     def run(self):

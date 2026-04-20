@@ -112,12 +112,13 @@ def _maybe_ask_keyword(status: dict, last_window: dict | None):
         f"app='{app}' title='{title}'"
     )
 
-    def on_confirm(keyword: str):
+    def on_confirm(keyword: str, is_study: bool):
         global _dialog_open
         _dialog_open = False
-        logger.info(f"[KEYWORD ADDED] '{keyword}' (via janela: '{title}')")
+        cat = "ESTUDO" if is_study else "DISTRAÇÃO"
+        logger.info(f"[KEYWORD ADDED] '{keyword}' ({cat}) via janela: '{title}'")
         asyncio.run_coroutine_threadsafe(
-            sender.add_keyword(keyword), _loop
+            sender.add_keyword(keyword, is_study), _loop
         )
 
     def on_ignore():
@@ -139,7 +140,7 @@ async def main_loop():
     tray.start()
 
     batch = []
-    last_send_time = time.time()
+    last_send_time = 0  # Set to 0 so first evaluation happens immediately
     last_window = None
     window_start_time = time.time()
 
