@@ -126,6 +126,13 @@ def _maybe_ask_keyword(status: dict, last_window: dict | None):
     if time.time() - _last_dialog_time < 120:  # 2 min debounce
         return
 
+    # Skip if backend already classified it (blacklist = distraction, user_idle = afk)
+    last_class = status.get("last_classification")
+    if last_class and last_class.get("classification"):
+        reason = last_class["classification"].get("reason", "")
+        if reason in ("blacklist", "user_idle"):
+            return
+
     title = last_window.get("window_title", "").strip()
     app = last_window.get("app_name", "").strip().lower()
 
