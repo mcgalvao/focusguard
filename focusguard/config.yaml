@@ -1,5 +1,5 @@
 name: "FocusGuard Backend"
-version: "1.0.3"
+version: "1.0.4"
 slug: "focusguard-backend"
 description: "Servidor e Dashboard do FocusGuard - Sistema Anti-procrastinação."
 arch:
@@ -16,6 +16,8 @@ map:
 options:
   person_entity: "person.matheus_galvao"
   hospital_zone: "zone.hospital"
+  ha_token: ""
 schema:
   person_entity: str
   hospital_zone: str
+  ha_token: str

@@ -70,13 +70,17 @@ class AppConfig:
             try:
                 with open(ADDON_OPTIONS_PATH, "r", encoding="utf-8") as f:
                     options = json.load(f)
-                    # When running inside HA Add-on, we use the internal supervisor API
-                    ha_data["url"] = "http://supervisor/core"
-                    ha_data["token"] = os.environ.get("SUPERVISOR_TOKEN", "")
-                    ha_data["person_entity"] = options.get("person_entity", ha_data.get("person_entity"))
-                    ha_data["hospital_zone"] = options.get("hospital_zone", ha_data.get("hospital_zone"))
+                # Use internal supervisor API URL
+                ha_data["url"] = "http://supervisor/core"
+                # Priority: ha_token from UI > SUPERVISOR_TOKEN env > app_config token
+                ha_token = options.get("ha_token", "").strip()
+                supervisor_token = os.environ.get("SUPERVISOR_TOKEN", "").strip()
+                ha_data["token"] = ha_token if ha_token else (supervisor_token if supervisor_token else ha_data.get("token", ""))
+                ha_data["person_entity"] = options.get("person_entity", ha_data.get("person_entity"))
+                ha_data["hospital_zone"] = options.get("hospital_zone", ha_data.get("hospital_zone"))
+                print(f"[Config] Running as HA Add-on. Entity: {ha_data['person_entity']}. Token set: {bool(ha_data['token'])}")
             except Exception as e:
-                print(f"Error loading Add-on options: {e}")
+                print(f"[Config] Error loading Add-on options: {e}")
 
         self.homeassistant = HomeAssistantConfig(ha_data)
         self.study_schedule = StudyScheduleConfig(data.get("study_schedule", {}))
