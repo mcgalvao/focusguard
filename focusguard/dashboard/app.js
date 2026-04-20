@@ -68,22 +68,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const iconEl = document.getElementById('state-icon');
         iconEl.className = 'state-icon';
         if (status.is_studying) {
-            titleEl.textContent = 'Estudando Focado'; subEl.textContent = `Sessão ativa há ${Math.round(status.current_study_duration_minutes)} minutos`;
+            titleEl.textContent = 'Estudando Focado';
+            const dur = formatTime(status.current_study_duration_minutes || 0);
+            subEl.textContent = `Sessão ativa há ${dur}`;
             iconEl.classList.add('state-study', 'pulse'); iconEl.innerHTML = '<i class="ph-fill ph-brain"></i>';
         } else if (status.is_useful_time) {
-            titleEl.textContent = 'Tempo Útil (Ocioso)'; subEl.textContent = `Você deveria estar estudando. (${status.useful_time_reason})`;
+            titleEl.textContent = 'Tempo Útil (Ocioso)';
+            subEl.textContent = `Você deveria estar estudando.`;
             iconEl.classList.add('state-useful'); iconEl.innerHTML = '<i class="ph-fill ph-warning-circle"></i>';
         } else if (status.is_home) {
-            titleEl.textContent = 'Em Casa (Livre)'; subEl.textContent = 'Descanse, você está fora do horário útil.';
+            titleEl.textContent = 'Em Casa (Livre)';
+            subEl.textContent = 'Descanse, você está fora do horário útil.';
             iconEl.innerHTML = '<i class="ph-fill ph-house"></i>';
         } else {
-            titleEl.textContent = 'Fora de Casa'; subEl.textContent = `Status HA: ${status.presence}`;
+            titleEl.textContent = 'Fora de Casa';
+            subEl.textContent = `Status HA: ${status.presence}`;
             iconEl.innerHTML = '<i class="ph-fill ph-car-profile"></i>';
         }
     }
 
-    function formatTime(minutes) {
-        const h = Math.floor(minutes / 60); const m = Math.floor(minutes % 60); return `${h}h ${m}m`;
+    function formatTime(totalMinutes) {
+        const totalSecs = Math.round(totalMinutes * 60);
+        const h = Math.floor(totalSecs / 3600);
+        const m = Math.floor((totalSecs % 3600) / 60);
+        const s = totalSecs % 60;
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
     }
 
     function updateReportUI(report) {
