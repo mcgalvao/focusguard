@@ -95,8 +95,18 @@ def _build_reason(status: dict, last_window: dict | None) -> str:
             parts.append("Passou do prazo")
         elif reason_code == "not_home":
             parts.append("Fora de casa")
+        elif reason_code == "grace_period":
+            parts.append("Descanso inicial")
+            deadline = status.get("useful_time_deadline")
+            if deadline:
+                try:
+                    from datetime import datetime
+                    dl = datetime.fromisoformat(deadline)
+                    parts.append(f'até {dl.strftime("%H:%M")}')
+                except Exception:
+                    pass
 
-    return " · ".join(parts)
+    return " · ".join([p for p in parts if p])
 
 
 def _maybe_ask_keyword(status: dict, last_window: dict | None):
