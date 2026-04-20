@@ -5,6 +5,7 @@ Classifies window activity and manages study sessions.
 import logging
 from datetime import datetime, timedelta
 import re
+import unicodedata
 
 from ..config import AppConfig
 from .. import database as db
@@ -16,25 +17,39 @@ class ActivityService:
         self.config = config
         self.last_classification = None
 
+    def _normalize_text(self, text: str) -> str:
+        if not text: return ""
+        # Remove accents and convert to lowercase
+        n_text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
+        return n_text.lower()
+
     def classify_activity(self, app_name: str, window_title: str) -> dict:
-        app_name_lower = app_name.lower()
-        title_lower = window_title.lower()
+        app_name_norm = self._normalize_text(app_name)
+        title_norm = self._normalize_text(window_title)
         detection_config = self.config.study_detection
         
         for kw in detection_config.blacklist_keywords:
-            if kw in title_lower or kw in app_name_lower:
+            kw_norm = self._normalize_text(kw)
+            if kw_norm in title_norm or kw_norm in app_name_norm:
                 return {"is_study": False, "matched_keywords": [kw], "reason": "blacklist"}
 
         matched_kws = []
         for kw in detection_config.ophthalmology_keywords:
-            if len(kw) <= 4:
-                if re.search(r'\b' + re.escape(kw) + r'\b', title_lower):
+            kw_norm = self._normalize_text(kw)
+            if not kw_norm: continue
+            
+            # Use word boundaries for better precision on short keywords
+            if len(kw_norm) <= 5:
+                if re.search(r'\b' + re.escape(kw_norm) + r'\b', title_norm):
                     matched_kws.append(kw)
-            elif kw in title_lower:
+            elif kw_norm in title_norm:
                 matched_kws.append(kw)
                 
         for kw in detection_config.general_study_keywords:
-            if kw in title_lower or kw in app_name_lower:
+            kw_norm = self._normalize_text(kw)
+            if not kw_norm: continue
+            
+            if kw_norm in title_norm or kw_norm in app_name_norm:
                 matched_kws.append(kw)
                 
         is_study = len(matched_kws) > 0
