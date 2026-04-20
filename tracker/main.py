@@ -45,10 +45,20 @@ def _build_reason(status: dict, last_window: dict | None) -> str:
     parts = []
 
     if status.get("is_studying"):
-        # Active study — keywords will come from the last batch
-        if last_window and last_window.get("window_title"):
-            short = last_window["window_title"][:40]
-            parts.append(f'"{short}"')
+        # Explicit reason from backend classification
+        last_class = status.get("last_classification")
+        if last_class and last_class.get("classification", {}).get("is_study"):
+            kws = last_class["classification"].get("matched_keywords", [])
+            kw_str = ", ".join(kws) if kws else "desconhecido"
+            if last_window and last_window.get("window_title"):
+                short = last_window["window_title"][:40]
+                parts.append(f'"{short}" (por: {kw_str})')
+            else:
+                parts.append(f'Keyword: {kw_str}')
+        else:
+            if last_window and last_window.get("window_title"):
+                short = last_window["window_title"][:40]
+                parts.append(f'"{short}"')
 
     elif status.get("is_useful_time"):
         reason_code = status.get("useful_time_reason", "")
@@ -57,6 +67,15 @@ def _build_reason(status: dict, last_window: dict | None) -> str:
             "fixed_schedule":   "Horário fixo de estudo",
         }
         parts.append(mapping.get(reason_code, reason_code))
+        
+        last_class = status.get("last_classification")
+        if last_class and not last_class.get("classification", {}).get("is_study"):
+            cls_reason = last_class["classification"].get("reason")
+            if cls_reason == "blacklist":
+                kws = last_class["classification"].get("matched_keywords", [])
+                kw_str = ", ".join(kws) if kws else ""
+                parts.append(f'Distração detectada: {kw_str}')
+            
         deadline = status.get("useful_time_deadline")
         if deadline:
             try:

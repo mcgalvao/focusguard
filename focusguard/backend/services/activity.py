@@ -14,6 +14,7 @@ logger = logging.getLogger("focusguard.activity")
 class ActivityService:
     def __init__(self, config: AppConfig):
         self.config = config
+        self.last_classification = None
 
     def classify_activity(self, app_name: str, window_title: str) -> dict:
         app_name_lower = app_name.lower()
@@ -67,6 +68,12 @@ class ActivityService:
                 has_study_activity = True
                 apps_used.add(act["app_name"])
                 keywords_matched.update(classification["matched_keywords"])
+
+            self.last_classification = {
+                "app_name": act["app_name"],
+                "window_title": act["window_title"],
+                "classification": classification
+            }
                 
         await db.log_activity_batch(processed_activities)
         await self._manage_study_sessions(has_study_activity, apps_used, keywords_matched)

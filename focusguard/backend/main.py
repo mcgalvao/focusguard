@@ -176,6 +176,10 @@ async def get_current_status():
     tracker_connected = _last_tracker_ping is not None and (time.time() - _last_tracker_ping) < 90
     result["tracker_connected"] = tracker_connected
     result["tracker_last_seen"] = _last_tracker_ping
+    
+    if _activity_service is not None:
+        result["last_classification"] = _activity_service.last_classification
+        
     return result
 
 
