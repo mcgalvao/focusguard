@@ -33,6 +33,12 @@ class TrackerOverlay:
         self._drag_y = 0
         self.on_keyword_added = on_keyword_added
 
+        # Pomodoro State
+        self._pomo_time_left = 25 * 60
+        self._pomo_running = False
+        self._pomo_mode = 'work' # 'work' or 'break'
+        self._last_pomo_tick = time.time()
+
         self._build_ui()
         self._bind_drag(self.root, self._frame_outer, self._frame_inner,
                         self._dot, self._lbl_status, self._lbl_reason, self._lbl_timer)
@@ -91,6 +97,36 @@ class TrackerOverlay:
                                    font=('Segoe UI', 7))
         self._lbl_timer.pack(side=tk.RIGHT)
 
+        # ── Row 4: Pomodoro Controls ─────────────────────────────────────
+        self._row_pomo = tk.Frame(self._frame_inner, bg='#1e293b')
+        self._row_pomo.pack(fill='x', pady=(6, 0))
+
+        self._lbl_pomo_clock = tk.Label(self._row_pomo, text='25:00',
+                                        bg='#0f172a', fg='#f8fafc',
+                                        font=('Segoe UI', 10, 'bold'),
+                                        padx=6, pady=2, width=5)
+        self._lbl_pomo_clock.pack(side=tk.LEFT)
+
+        self._btn_pomo_toggle = tk.Label(self._row_pomo, text='▶',
+                                         bg='#334155', fg='white',
+                                         font=('Segoe UI', 8),
+                                         padx=8, pady=2, cursor='hand2')
+        self._btn_pomo_toggle.pack(side=tk.LEFT, padx=(4, 0))
+        self._btn_pomo_toggle.bind('<Button-1>', self._toggle_pomo)
+
+        self._btn_pomo_reset = tk.Label(self._row_pomo, text='⟲',
+                                        bg='#334155', fg='#94a3b8',
+                                        font=('Segoe UI', 8),
+                                        padx=8, pady=2, cursor='hand2')
+        self._btn_pomo_reset.pack(side=tk.LEFT, padx=(4, 0))
+        self._btn_pomo_reset.bind('<Button-1>', self._reset_pomo)
+
+        self._lbl_pomo_status = tk.Label(self._row_pomo, text='FOCO',
+                                         bg='#1e293b', fg='#64748b',
+                                         font=('Segoe UI', 7, 'bold'),
+                                         padx=4)
+        self._lbl_pomo_status.pack(side=tk.LEFT, padx=(4, 0))
+
     def _bind_drag(self, *widgets):
         for w in widgets:
             w.bind('<Button-1>', self._on_drag_start)
@@ -106,11 +142,64 @@ class TrackerOverlay:
         self.root.geometry(f'+{x}+{y}')
 
     def _tick(self):
-        """Update the countdown timer every second."""
-        elapsed = time.time() - self._last_check_time
+        """Update the countdown timer and pomodoro every second."""
+        now = time.time()
+        
+        # Backend check timer
+        elapsed = now - self._last_check_time
         remaining = max(0, int(self._next_check_in - elapsed))
-        self._lbl_timer.config(text=f'Próx. avaliação: {remaining}s')
+        self._lbl_timer.config(text=f'Auto: {remaining}s')
+
+        # Pomodoro timer
+        if self._pomo_running:
+            p_elapsed = now - self._last_pomo_tick
+            if p_elapsed >= 1:
+                self._pomo_time_left -= int(p_elapsed)
+                self._last_pomo_tick = now
+                if self._pomo_time_left <= 0:
+                    self._on_pomo_finish()
+                self._update_pomo_display()
+
         self.root.after(1000, self._tick)
+
+    def _toggle_pomo(self, event=None):
+        self._pomo_running = not self._pomo_running
+        self._last_pomo_tick = time.time()
+        self._btn_pomo_toggle.config(text='⏸' if self._pomo_running else '▶',
+                                     bg='#8b5cf6' if self._pomo_running else '#334155')
+        if self._pomo_running:
+            self._lbl_pomo_clock.config(fg='#8b5cf6')
+        else:
+            self._lbl_pomo_clock.config(fg='#f8fafc')
+
+    def _reset_pomo(self, event=None):
+        self._pomo_running = False
+        self._pomo_mode = 'work'
+        self._pomo_time_left = 25 * 60
+        self._btn_pomo_toggle.config(text='▶', bg='#334155')
+        self._lbl_pomo_clock.config(fg='#f8fafc')
+        self._lbl_pomo_status.config(text='FOCO', fg='#64748b')
+        self._update_pomo_display()
+
+    def _on_pomo_finish(self):
+        self._pomo_running = False
+        self._btn_pomo_toggle.config(text='▶', bg='#334155')
+        if self._pomo_mode == 'work':
+            self._pomo_mode = 'break'
+            self._pomo_time_left = 5 * 60
+            self._lbl_pomo_status.config(text='PAUSA', fg='#10b981')
+        else:
+            self._pomo_mode = 'work'
+            self._pomo_time_left = 25 * 60
+            self._lbl_pomo_status.config(text='FOCO', fg='#64748b')
+        self._update_pomo_display()
+        # Flash window or something?
+        self.root.bell()
+
+    def _update_pomo_display(self):
+        m = self._pomo_time_left // 60
+        s = self._pomo_time_left % 60
+        self._lbl_pomo_clock.config(text=f'{m:02d}:{s:02d}')
 
     def set_status(self, status: str, reason: str = '', check_interval: int = 30, proc_pct: float = None):
         """Thread-safe update — called from asyncio thread."""
@@ -123,8 +212,32 @@ class TrackerOverlay:
 
     def _refresh_ui(self):
         color, label = self.STATUS_CONFIG.get(self._status, ('#94a3b8', '—'))
-        self._dot.config(fg=color)
-        self._lbl_status.config(text=label)
+        
+        # High impact procrastination alert
+        if self._status == 'useful_idle':
+            # Flash border red and bg dark red
+            self._frame_outer.config(bg='#e11d48')
+            self._frame_inner.config(bg='#450a0a')
+            self._lbl_status.config(text='PARE DE ENROLAR!', fg='#ef4444')
+            self._dot.config(fg='#ef4444')
+        elif self._status == 'studying':
+            # Soft emerald theme for study
+            self._frame_outer.config(bg='#059669')
+            self._frame_inner.config(bg='#064e3b')
+            self._lbl_status.config(text=label, fg='#10b981')
+            self._dot.config(fg='#10b981')
+        else:
+            self._frame_outer.config(bg='#0f172a')
+            self._frame_inner.config(bg='#1e293b')
+            self._lbl_status.config(text=label, fg='#f8fafc')
+            self._dot.config(fg=color)
+
+        # Update sub-labels bg to match theme
+        theme_bg = self._frame_inner.cget('bg')
+        for lbl in [self._lbl_reason, self._lbl_proc, self._lbl_timer, self._row_pomo, self._lbl_pomo_status, self._close_btn, self._dot]:
+            try: lbl.config(bg=theme_bg)
+            except: pass
+
         self._lbl_reason.config(text=self._reason)
         
         if self._proc_pct is not None:
@@ -136,6 +249,17 @@ class TrackerOverlay:
             else:
                 p_color = '#10b981'
             self._lbl_proc.config(text=f'Procrastinação: {int(self._proc_pct)}%', fg=p_color)
+
+            # Dynamic Nudge
+            if self._status == 'useful_idle':
+                if self._proc_pct > 40:
+                    self._lbl_reason.config(text="⚠️ VOCÊ ESTÁ JOGANDO SEU DIA FORA!", fg='#f87171')
+                elif self._proc_pct > 20:
+                    self._lbl_reason.config(text="⚠️ Hora de focar, a meta está longe.", fg='#fb923c')
+                else:
+                    self._lbl_reason.config(text="⚠️ Não deixe o ritmo cair agora.", fg='#fbbf24')
+            elif self._status == 'studying':
+                self._lbl_reason.config(text="✅ Excelente ritmo! Continue assim.", fg='#34d399')
 
     def show_keyword_dialog(self, window_title: str, app_name: str,
                             on_confirm, on_ignore):
