@@ -75,6 +75,8 @@ def _build_reason(status: dict, last_window: dict | None) -> str:
                 kws = last_class["classification"].get("matched_keywords", [])
                 kw_str = ", ".join(kws) if kws else ""
                 parts.append(f'Distração detectada: {kw_str}')
+            elif cls_reason == "user_idle":
+                parts.append("Inatividade detectada")
             
         deadline = status.get("useful_time_deadline")
         if deadline:

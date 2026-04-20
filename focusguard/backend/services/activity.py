@@ -23,7 +23,11 @@ class ActivityService:
         n_text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
         return n_text.lower()
 
-    def classify_activity(self, app_name: str, window_title: str) -> dict:
+    def classify_activity(self, app_name: str, window_title: str, idle_seconds: float = 0) -> dict:
+        # If the user is idle for more than 2 minutes, it's not study
+        if idle_seconds > 120:
+            return {"is_study": False, "matched_keywords": [], "reason": "user_idle"}
+
         app_name_norm = self._normalize_text(app_name)
         title_norm = self._normalize_text(window_title)
         detection_config = self.config.study_detection
@@ -69,7 +73,11 @@ class ActivityService:
         keywords_matched = set()
         
         for act in activities:
-            classification = self.classify_activity(act["app_name"], act["window_title"])
+            classification = self.classify_activity(
+                act["app_name"], 
+                act["window_title"], 
+                act.get("idle_seconds", 0)
+            )
             is_study = classification["is_study"]
             
             act_record = {
