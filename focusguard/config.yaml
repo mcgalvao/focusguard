@@ -1,6 +1,6 @@
 homeassistant:
   url: "http://homeassistant.local:8123"
-  token: "YOUR_LONG_LIVED_TOKEN"
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI0MzJmODIzMDk0NjI0MTUzYTE3MThkZjI0YjgzMjk0NSIsImlhdCI6MTc3NjcwNDExMywiZXhwIjoyMDkyMDY0MTEzfQ.nN_r4F27UP10W1BRNdZ2WXrxA4GsiESoWWuO5dSHSWo"
   person_entity: "person.matheus_galvao"
   hospital_zone: "zone.hospital"  # Zone name in HA for the hospital
 
@@ -38,7 +38,7 @@ study_detection:
     - "conjuntiva"
     - "esclera"
     - "úvea"
-    - "uvea"
+    - "uvea"    
     - "íris"
     - "cristalino"
     - "vítreo"
