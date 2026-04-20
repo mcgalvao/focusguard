@@ -287,9 +287,20 @@ async def get_config():
 @app.get("/api/keywords")
 async def get_keywords():
     if _config is None:
-        return {"keywords": [], "user_keywords": []}
-    all_kw = list(_config.study_detection.all_study_keywords) + _user_keywords
-    return {"keywords": all_kw, "user_keywords": _user_keywords}
+        return {}
+    
+    sys_study = _config.study_detection.ophthalmology_keywords + _config.study_detection.general_study_keywords
+    # Remove user ones from sys_study if they are there
+    sys_study = [k for k in sys_study if k not in _user_keywords]
+    
+    sys_blacklist = [k for k in _config.study_detection.blacklist_keywords if k not in _user_blacklist_keywords]
+    
+    return {
+        "user_study": _user_keywords,
+        "user_blacklist": _user_blacklist_keywords,
+        "system_study": sys_study,
+        "system_blacklist": sys_blacklist
+    }
 
 
 class KeywordPayload(BaseModel):
@@ -330,6 +341,35 @@ async def add_keyword_endpoint(payload: KeywordPayload):
             logger.info(f"User added distraction keyword: '{kw}'")
             
     return {"success": True, "keyword": kw, "is_study": payload.is_study}
+
+@app.delete("/api/keywords/{keyword}")
+async def delete_keyword(keyword: str, is_study: bool = True):
+    import json
+    kw = keyword.strip().lower()
+    success = False
+    
+    if is_study:
+        if kw in _user_keywords:
+            _user_keywords.remove(kw)
+            success = True
+            try:
+                with open(os.path.join(DATA_DIR, "user_keywords.json"), "w") as f:
+                    json.dump(_user_keywords, f)
+            except Exception: pass
+            if _activity_service is not None and kw in _activity_service.config.study_detection.ophthalmology_keywords:
+                _activity_service.config.study_detection.ophthalmology_keywords.remove(kw)
+    else:
+        if kw in _user_blacklist_keywords:
+            _user_blacklist_keywords.remove(kw)
+            success = True
+            try:
+                with open(os.path.join(DATA_DIR, "user_blacklist_keywords.json"), "w") as f:
+                    json.dump(_user_blacklist_keywords, f)
+            except Exception: pass
+            if _activity_service is not None and kw in _activity_service.config.study_detection.blacklist_keywords:
+                _activity_service.config.study_detection.blacklist_keywords.remove(kw)
+                
+    return {"success": success}
 
 
 # ── Static Dashboard ────────────────────────────────────────────────────────

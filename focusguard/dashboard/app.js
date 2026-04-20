@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
             views.forEach(v => v.classList.remove('active-view'));
             document.getElementById(targetId).classList.add('active-view');
             if(link.dataset.tab === 'tasks') fetchTasks();
+            if(link.dataset.tab === 'settings') fetchKeywords();
         });
     });
 
@@ -168,6 +169,69 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-pomo-reset').addEventListener('click', () => {
         clearInterval(pomoInterval); isRunning = false; timeLeft = 25 * 60; updateTimerDisplay(); startBtn.innerHTML = '<i class="ph ph-play"></i>';
     });
+
+    async function fetchKeywords() {
+        try {
+            const res = await fetch('api/keywords');
+            const data = await res.json();
+            renderKeywords('user-study-tags', data.user_study, true, true);
+            renderKeywords('system-study-tags', data.system_study, true, false);
+            renderKeywords('user-blacklist-tags', data.user_blacklist, false, true);
+            renderKeywords('system-blacklist-tags', data.system_blacklist, false, false);
+        } catch (e) { console.error(e); }
+    }
+
+    function renderKeywords(containerId, keywords, isStudy, isUser) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        if (!keywords || keywords.length === 0) {
+            container.innerHTML = '<span style="color:var(--text-muted); font-size:0.8rem;">Vazio</span>';
+            return;
+        }
+        keywords.forEach(kw => {
+            const tag = document.createElement('div');
+            tag.className = `keyword-tag ${!isStudy ? 'distraction' : ''} ${!isUser ? 'system' : ''}`;
+            tag.innerHTML = `<span>${kw}</span>`;
+            if (isUser) {
+                const btn = document.createElement('button');
+                btn.className = 'btn-remove-tag';
+                btn.innerHTML = '<i class="ph ph-x"></i>';
+                btn.onclick = () => deleteKeyword(kw, isStudy);
+                tag.appendChild(btn);
+            }
+            container.appendChild(tag);
+        });
+    }
+
+    async function addKeyword(id, isStudy) {
+        const input = document.getElementById(id);
+        const kw = input.value.trim();
+        if (!kw) return;
+        try {
+            const res = await fetch('api/keywords', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyword: kw, is_study: isStudy })
+            });
+            if (res.ok) { input.value = ''; fetchKeywords(); }
+        } catch (e) { console.error(e); }
+    }
+
+    async function deleteKeyword(kw, isStudy) {
+        try {
+            const res = await fetch(`api/keywords/${encodeURIComponent(kw)}?is_study=${isStudy}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) fetchKeywords();
+        } catch (e) { console.error(e); }
+    }
+
+    document.getElementById('btn-add-study-keyword').onclick = () => addKeyword('input-study-keyword', true);
+    document.getElementById('btn-add-blacklist-keyword').onclick = () => addKeyword('input-blacklist-keyword', false);
+    
+    // Add enter key support
+    document.getElementById('input-study-keyword').onkeypress = (e) => { if(e.key === 'Enter') addKeyword('input-study-keyword', true); };
+    document.getElementById('input-blacklist-keyword').onkeypress = (e) => { if(e.key === 'Enter') addKeyword('input-blacklist-keyword', false); };
 
     setInterval(fetchStatus, 10000); setInterval(fetchReport, 30000);
     fetchStatus(); fetchReport();

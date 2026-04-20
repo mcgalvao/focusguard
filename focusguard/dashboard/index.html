@@ -120,6 +120,68 @@
                     </ul>
                 </div>
             </section>
+            <section id="view-settings" class="view hidden">
+                <header class="topbar">
+                    <div>
+                        <h1 class="greeting">Configurações</h1>
+                        <p class="subtitle">Gerencie suas palavras-chave de estudo e distrações.</p>
+                    </div>
+                </header>
+                
+                <div class="settings-grid">
+                    <!-- Study Keywords -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <i class="ph ph-book-open"></i>
+                            <h3>Palavras-chave de Estudo</h3>
+                        </div>
+                        <p class="card-desc">Janelas contendo estas palavras serão marcadas como tempo útil de estudo.</p>
+                        
+                        <div class="keyword-input-group">
+                            <input type="text" id="input-study-keyword" placeholder="Ex: glaucoma, retina...">
+                            <button class="btn-icon-primary" id="btn-add-study-keyword"><i class="ph ph-plus"></i></button>
+                        </div>
+                        
+                        <div class="keyword-list-container">
+                            <h4>Suas Palavras</h4>
+                            <div class="keyword-tags" id="user-study-tags">
+                                <!-- User keywords here -->
+                            </div>
+                            
+                            <h4 class="mt-4">Sistema (Padrão)</h4>
+                            <div class="keyword-tags system" id="system-study-tags">
+                                <!-- System keywords here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Blacklist Keywords -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <i class="ph ph-prohibit"></i>
+                            <h3>Palavras-chave de Distração</h3>
+                        </div>
+                        <p class="card-desc">Janelas contendo estas palavras (ou apps) serão marcadas como OCIOSO/PROCRASTINAÇÃO.</p>
+                        
+                        <div class="keyword-input-group">
+                            <input type="text" id="input-blacklist-keyword" placeholder="Ex: facebook, youtube, xadrez...">
+                            <button class="btn-icon-danger" id="btn-add-blacklist-keyword"><i class="ph ph-plus"></i></button>
+                        </div>
+                        
+                        <div class="keyword-list-container">
+                            <h4>Suas Palavras</h4>
+                            <div class="keyword-tags" id="user-blacklist-tags">
+                                <!-- User keywords here -->
+                            </div>
+                            
+                            <h4 class="mt-4">Sistema (Padrão)</h4>
+                            <div class="keyword-tags system" id="system-blacklist-tags">
+                                <!-- System keywords here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
     <script src="static/app.js"></script>
