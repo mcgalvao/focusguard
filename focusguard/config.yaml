@@ -1,5 +1,5 @@
 name: "FocusGuard Backend"
-version: "1.2.7"
+version: "1.2.8"
 slug: "focusguard-backend"
 description: "Servidor e Dashboard do FocusGuard - Sistema Anti-procrastinação com gestão de palavras-chave e detecção de inatividade."
 arch:
