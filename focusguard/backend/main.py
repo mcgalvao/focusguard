@@ -59,6 +59,8 @@ async def lifespan(app: FastAPI):
     global _activity_service, _report_service, _scheduler
 
     logger.info("=== FocusGuard Backend Starting ===")
+    global _config, _ha_client, _gtasks_client, _presence_service, _activity_service, _report_service, _scheduler
+
 
     try:
         from .config import AppConfig
@@ -295,14 +297,19 @@ async def get_config():
 
 @app.get("/api/keywords")
 async def get_keywords():
+    global _config, _user_keywords, _user_blacklist_keywords
     if _config is None:
-        return {}
+        return {"user_study": [], "user_blacklist": [], "system_study": [], "system_blacklist": []}
     
-    sys_study = _config.study_detection.ophthalmology_keywords + _config.study_detection.general_study_keywords
-    # Remove user ones from sys_study if they are there
-    sys_study = [k for k in sys_study if k not in _user_keywords]
+    # Base system keywords from YAML
+    sys_study_base = _config.study_detection.ophthalmology_keywords + _config.study_detection.general_study_keywords
+    sys_blacklist_base = _config.study_detection.blacklist_keywords
     
-    sys_blacklist = [k for k in _config.study_detection.blacklist_keywords if k not in _user_blacklist_keywords]
+    # Filter out any that are in the user-added lists to avoid duplicates in UI
+    sys_study = [k for k in sys_study_base if k not in _user_keywords]
+    sys_blacklist = [k for k in sys_blacklist_base if k not in _user_blacklist_keywords]
+
+    logger.debug(f"[API] Fetching keywords. User Study: {len(_user_keywords)}, Sys Study: {len(sys_study)}")
     
     return {
         "user_study": _user_keywords,
@@ -332,10 +339,14 @@ async def add_keyword_endpoint(payload: KeywordPayload):
                 with open(user_kw_path, "w") as f:
                     json.dump(_user_keywords, f)
             except Exception as e:
-                logger.warning(f"Could not save user_keywords.json: {e}")
+                logger.error(f"Could not save user_keywords.json: {e}")
+            
+            # Also inject into the active service's detection list if not already there
             if _activity_service is not None:
-                _activity_service.config.study_detection.ophthalmology_keywords.append(kw)
-            logger.info(f"User added study keyword: '{kw}'")
+                if kw not in _activity_service.config.study_detection.ophthalmology_keywords:
+                    _activity_service.config.study_detection.ophthalmology_keywords.append(kw)
+            
+            logger.info(f"[KEYWORDS] User added study keyword: '{kw}'")
     else:
         if kw not in _user_blacklist_keywords:
             _user_blacklist_keywords.append(kw)
