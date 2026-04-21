@@ -8,11 +8,13 @@ from datetime import datetime, date
 from typing import Optional
 import json
 
-# Use /data inside Add-on for persistence
-if os.path.exists("/data/options.json"):
-    DATA_DIR = "/data"
-else:
-    DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
+# Priority: 1. ENV, 2. HA Add-on path, 3. Local data folder
+DATA_DIR = os.environ.get("DATA_DIR")
+if not DATA_DIR:
+    if os.path.exists("/data/options.json"):
+        DATA_DIR = "/data"
+    else:
+        DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 DB_PATH = os.path.join(DATA_DIR, "focusguard.db")
 
 

@@ -15,10 +15,13 @@ from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # ── Logging Setup (must be first) ──────────────────────────────────────────
-if os.path.exists("/data/options.json"):
-    DATA_DIR = "/data"
-else:
-    DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
+# Priority: 1. ENV, 2. HA Add-on path, 3. Local data folder
+DATA_DIR = os.environ.get("DATA_DIR")
+if not DATA_DIR:
+    if os.path.exists("/data/options.json"):
+        DATA_DIR = "/data"
+    else:
+        DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 logging.basicConfig(
@@ -72,6 +75,9 @@ async def lifespan(app: FastAPI):
         from .services.reports import ReportService
 
         _config = AppConfig.get()
+        logger.info(f"[Config] DATA_DIR: {DATA_DIR}")
+        import time
+        logger.info(f"[Config] System Time: {time.ctime()} (TZ: {os.environ.get('TZ', 'not set')})")
         logger.info("Config loaded OK")
 
         _ha_client = HomeAssistantClient(
