@@ -5,6 +5,7 @@ Reads app_config.yaml and provides typed access to all settings.
 import yaml
 import os
 import json
+import time
 from typing import Optional
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
@@ -89,6 +90,16 @@ class AppConfig:
 
                 ha_data["person_entity"] = options.get("person_entity", ha_data.get("person_entity"))
                 ha_data["hospital_zone"] = options.get("hospital_zone", ha_data.get("hospital_zone"))
+                
+                # Set process timezone if specified
+                tz = options.get("timezone", "America/Sao_Paulo")
+                os.environ["TZ"] = tz
+                try:
+                    time.tzset()
+                    print(f"[Config] Timezone set to {tz}")
+                except Exception as e:
+                    print(f"[Config] Failed to set timezone: {e}")
+                    
                 print(f"[Config] Entity: {ha_data['person_entity']}. Token set: {bool(ha_data.get('token'))}")
             except Exception as e:
                 print(f"[Config] Error loading Add-on options: {e}")
