@@ -347,6 +347,21 @@ async def get_active_session() -> Optional[dict]:
         await db.close()
 
 
+async def get_last_completed_session() -> Optional[dict]:
+    """Get the most recently completed study session (not the active one)."""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """SELECT * FROM study_sessions 
+               WHERE end_time IS NOT NULL 
+               ORDER BY end_time DESC LIMIT 1"""
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+    finally:
+        await db.close()
+
+
 # ─── Daily Reports ───
 
 async def save_daily_report(report: dict):

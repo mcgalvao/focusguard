@@ -23,9 +23,9 @@ class ActivityService:
         n_text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
         return n_text.lower()
 
-    def classify_activity(self, app_name: str, window_title: str, idle_seconds: float = 0) -> dict:
-        # If the user is idle for more than 2 minutes, it's not study
-        if idle_seconds > 120:
+    def classify_activity(self, app_name: str, window_title: str, idle_seconds: float = 0, idle_threshold_seconds: float = 180) -> dict:
+        # If the user is idle beyond the dynamic threshold, it's not study
+        if idle_seconds > idle_threshold_seconds:
             return {"is_study": False, "matched_keywords": [], "reason": "user_idle"}
 
         app_name_norm = self._normalize_text(app_name)
@@ -71,14 +71,37 @@ class ActivityService:
         has_study_activity = False
         apps_used = set()
         keywords_matched = set()
+
+        # ── Dynamic idle threshold ───────────────────────────────────────
+        # Base: 3 min (180s). Exception: if last session was long, allow
+        # a break of 5/6 of that session duration before going idle.
+        BASE_IDLE_THRESHOLD = 180  # 3 minutes in seconds
+        idle_threshold = BASE_IDLE_THRESHOLD
+        last_session = await db.get_last_completed_session()
+        if last_session and last_session.get("duration_minutes"):
+            session_seconds = last_session["duration_minutes"] * 60
+            allowed_break = session_seconds * (5 / 6)
+            if allowed_break > BASE_IDLE_THRESHOLD:
+                idle_threshold = allowed_break
+                logger.debug(
+                    f"[IDLE] Threshold dinâmico: {idle_threshold:.0f}s "
+                    f"(sessão anterior: {last_session['duration_minutes']:.1f}min)"
+                )
         
         for act in activities:
             classification = self.classify_activity(
                 act["app_name"], 
                 act["window_title"], 
-                act.get("idle_seconds", 0)
+                act.get("idle_seconds", 0),
+                idle_threshold_seconds=idle_threshold
             )
             is_study = classification["is_study"]
+
+            if classification["reason"] == "user_idle":
+                logger.info(
+                    f"[IDLE] Inativo por {act.get('idle_seconds', 0):.0f}s "
+                    f"(limite: {idle_threshold:.0f}s) — não conta como estudo."
+                )
             
             act_record = {
                 **act,
