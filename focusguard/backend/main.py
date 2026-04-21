@@ -89,7 +89,10 @@ async def lifespan(app: FastAPI):
             try:
                 import json
                 with open(user_kw_path) as f:
-                    _user_keywords.extend(json.load(f))
+                    loaded = json.load(f)
+                    _user_keywords.extend(loaded)
+                    if _activity_service:
+                        _activity_service.config.study_detection.ophthalmology_keywords.extend(loaded)
                 logger.info(f"Loaded {len(_user_keywords)} user keywords from disk")
             except Exception as e:
                 logger.warning(f"Could not load user_keywords.json: {e}")
@@ -97,7 +100,10 @@ async def lifespan(app: FastAPI):
             try:
                 import json
                 with open(user_bl_path) as f:
-                    _user_blacklist_keywords.extend(json.load(f))
+                    loaded = json.load(f)
+                    _user_blacklist_keywords.extend(loaded)
+                    if _activity_service:
+                        _activity_service.config.study_detection.blacklist_keywords.extend(loaded)
                 logger.info(f"Loaded {len(_user_blacklist_keywords)} user blacklist keywords from disk")
             except Exception as e:
                 logger.warning(f"Could not load user_blacklist_keywords.json: {e}")
