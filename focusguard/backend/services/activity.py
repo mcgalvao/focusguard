@@ -66,7 +66,13 @@ class ActivityService:
     async def process_activity_batch(self, activities: list):
         if not activities:
             return
-            
+
+        try:
+            await self._process_activity_batch_inner(activities)
+        except Exception as e:
+            logger.error(f"[BATCH] Erro crítico no processamento de atividades: {e}", exc_info=True)
+
+    async def _process_activity_batch_inner(self, activities: list):
         processed_activities = []
         has_study_activity = False
         apps_used = set()
@@ -77,16 +83,19 @@ class ActivityService:
         # a break of 5/6 of that session duration before going idle.
         BASE_IDLE_THRESHOLD = 180  # 3 minutes in seconds
         idle_threshold = BASE_IDLE_THRESHOLD
-        last_session = await db.get_last_completed_session()
-        if last_session and last_session.get("duration_minutes"):
-            session_seconds = last_session["duration_minutes"] * 60
-            allowed_break = session_seconds * (5 / 6)
-            if allowed_break > BASE_IDLE_THRESHOLD:
-                idle_threshold = allowed_break
-                logger.debug(
-                    f"[IDLE] Threshold dinâmico: {idle_threshold:.0f}s "
-                    f"(sessão anterior: {last_session['duration_minutes']:.1f}min)"
-                )
+        try:
+            last_session = await db.get_last_completed_session()
+            if last_session and last_session.get("duration_minutes"):
+                session_seconds = last_session["duration_minutes"] * 60
+                allowed_break = session_seconds * (5 / 6)
+                if allowed_break > BASE_IDLE_THRESHOLD:
+                    idle_threshold = allowed_break
+                    logger.debug(
+                        f"[IDLE] Threshold dinâmico: {idle_threshold:.0f}s "
+                        f"(sessão anterior: {last_session['duration_minutes']:.1f}min)"
+                    )
+        except Exception as e:
+            logger.warning(f"[IDLE] Falha ao obter última sessão, usando base {BASE_IDLE_THRESHOLD}s: {e}")
         
         for act in activities:
             classification = self.classify_activity(
