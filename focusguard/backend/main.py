@@ -15,7 +15,10 @@ from pydantic import BaseModel
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # ── Logging Setup (must be first) ──────────────────────────────────────────
-DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
+if os.path.exists("/data/options.json"):
+    DATA_DIR = "/data"
+else:
+    DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
 logging.basicConfig(

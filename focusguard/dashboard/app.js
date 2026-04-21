@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchKeywords() {
         try {
-            const res = await fetch('api/keywords');
+            const res = await fetch(`api/keywords?t=${new Date().getTime()}`);
             const data = await res.json();
             renderKeywords('user-study-tags', data.user_study, true, true);
             renderKeywords('system-study-tags', data.system_study, true, false);
